@@ -1,64 +1,1069 @@
-<script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AbogadoYA — Asistencia Legal de Emergencia 24/7</title>
+  <meta name="description" content="Conecta con un abogado en segundos durante encuentros policiales. Protege tus derechos en alcabalas y puntos de control en Venezuela.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0A1628;
+      --navy-light: #121F36;
+      --navy-mid: #1A2A45;
+      --blue-trust: #2563EB;
+      --blue-glow: #3B82F6;
+      --blue-soft: #60A5FA;
+      --red-emergency: #EF4444;
+      --red-pulse: #DC2626;
+      --orange-alert: #F97316;
+      --green-safe: #22C55E;
+      --gold: #F59E0B;
+      --white: #FFFFFF;
+      --gray-100: #F1F5F9;
+      --gray-200: #E2E8F0;
+      --gray-300: #CBD5E1;
+      --gray-400: #94A3B8;
+      --gray-500: #64748B;
+    }
 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--navy);
+      color: var(--white);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      padding: 1rem 1.5rem;
+      background: rgba(10, 22, 40, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--blue-trust), var(--blue-glow));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .logo-text {
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: var(--white);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: var(--red-emergency);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .nav-cta {
+      background: var(--blue-trust);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .nav-cta:hover { background: var(--blue-glow); transform: translateY(-1px); }
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--blue-soft);
+      margin-bottom: 2rem;
+      animation: fadeDown 0.8s ease;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--green-safe);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      font-weight: 900;
+      line-height: 1.1;
+      max-width: 700px;
+      margin-bottom: 1.5rem;
+      letter-spacing: -1.5px;
+      animation: fadeDown 0.8s ease 0.1s both;
+    }
+
+    .hero h1 .highlight {
+      background: linear-gradient(135deg, var(--red-emergency), var(--orange-alert));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--gray-400);
+      max-width: 500px;
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+      animation: fadeDown 0.8s ease 0.2s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 360px;
+      animation: fadeDown 0.8s ease 0.3s both;
+    }
+
+    .btn-primary {
+      background: var(--red-emergency);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.3s;
+      box-shadow: 0 4px 24px rgba(239, 68, 68, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+      transform: translateX(-100%);
+      transition: transform 0.6s;
+    }
+
+    .btn-primary:hover::after { transform: translateX(100%); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); }
+
+    .btn-secondary {
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--blue-soft);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(37, 99, 235, 0.25);
+      border-color: rgba(37, 99, 235, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .hero-legal {
+      margin-top: 3rem;
+      padding: 1rem 1.5rem;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 12px;
+      max-width: 500px;
+      animation: fadeDown 0.8s ease 0.4s both;
+    }
+
+    .hero-legal p {
+      font-size: 0.8rem;
+      color: var(--green-safe);
+      line-height: 1.5;
+    }
+
+    .hero-legal strong { color: var(--white); }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .phone-section {
+      padding: 2rem 1.5rem 4rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .phone-mockup {
+      width: 280px;
+      height: 560px;
+      background: var(--navy-light);
+      border-radius: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      padding: 1rem;
+      position: relative;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 60px rgba(37, 99, 235, 0.1);
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #0F1A2E 0%, #162236 100%);
+      border-radius: 30px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1.2rem;
+    }
+
+    .phone-status {
+      font-size: 0.65rem;
+      color: var(--gray-400);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .phone-status .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green-safe);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+
+    .phone-logo-small {
+      font-weight: 800;
+      font-size: 1rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .phone-logo-small span { color: var(--red-emergency); font-family: 'Space Mono', monospace; }
+
+    .phone-tagline {
+      font-size: 0.65rem;
+      color: var(--gray-400);
+      margin-bottom: 2rem;
+    }
+
+    .emergency-btn {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #FF6B6B, var(--red-emergency), var(--red-pulse));
+      border: 4px solid rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      cursor: pointer;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.4), inset 0 -4px 8px rgba(0,0,0,0.2);
+      animation: pulse-btn 3s infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes pulse-btn {
+      0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.3); }
+      50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.5), 0 0 100px rgba(239, 68, 68, 0.2); }
+    }
+
+    .emergency-btn .icon { font-size: 2rem; }
+    .emergency-btn .text { font-size: 0.6rem; font-weight: 700; margin-top: 0.2rem; letter-spacing: 1px; }
+
+    .phone-instruction {
+      font-size: 0.6rem;
+      color: var(--gray-500);
+      margin-bottom: 2rem;
+    }
+
+    .phone-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .phone-feat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 0.6rem;
+      text-align: center;
+    }
+
+    .phone-feat .pf-icon { font-size: 1.1rem; margin-bottom: 0.2rem; }
+    .phone-feat .pf-text { font-size: 0.55rem; color: var(--gray-400); font-weight: 500; }
+
+    .section {
+      padding: 5rem 1.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--blue-soft);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 3rem;
+      line-height: 1.15;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .step {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      background: linear-gradient(135deg, var(--blue-trust), var(--blue-glow));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+    }
+
+    .step-content h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .step-content p {
+      font-size: 0.9rem;
+      color: var(--gray-400);
+      line-height: 1.6;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .feature-card {
+      background: var(--navy-light);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(37, 99, 235, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+    }
+
+    .fi-blue { background: rgba(37, 99, 235, 0.15); }
+    .fi-red { background: rgba(239, 68, 68, 0.15); }
+    .fi-green { background: rgba(34, 197, 94, 0.15); }
+    .fi-gold { background: rgba(245, 158, 11, 0.15); }
+
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+      font-size: 0.85rem;
+      color: var(--gray-400);
+      line-height: 1.6;
+    }
+
+    .abogados-section {
+      background: linear-gradient(180deg, var(--navy) 0%, var(--navy-light) 50%, var(--navy) 100%);
+      border-top: 1px solid rgba(37, 99, 235, 0.15);
+      border-bottom: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    .benefit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .benefit-item {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      background: rgba(37, 99, 235, 0.06);
+      border: 1px solid rgba(37, 99, 235, 0.12);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .benefit-check {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      background: rgba(34, 197, 94, 0.15);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green-safe);
+      font-size: 0.9rem;
+    }
+
+    .benefit-item h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .benefit-item p { font-size: 0.8rem; color: var(--gray-400); line-height: 1.5; }
+
+    .legal-backing {
+      background: rgba(34, 197, 94, 0.05);
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .legal-backing h3 {
+      color: var(--green-safe);
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .legal-backing p {
+      font-size: 0.85rem;
+      color: var(--gray-300);
+      line-height: 1.7;
+      margin-bottom: 0.75rem;
+    }
+
+    .legal-backing .cite {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      font-style: italic;
+    }
+
+    .form-container {
+      background: var(--navy-light);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+    }
+
+    .form-container h3 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-container .form-sub {
+      font-size: 0.85rem;
+      color: var(--gray-400);
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--gray-300);
+      margin-bottom: 0.4rem;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: var(--white);
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--blue-trust);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .form-group select option { background: var(--navy); }
+
+    .form-submit {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--blue-trust);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .form-submit:hover { background: var(--blue-glow); transform: translateY(-1px); }
+
+    .form-submit.red { background: var(--red-emergency); }
+    .form-submit.red:hover { background: #DC2626; }
+
+    .form-note {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      text-align: center;
+      margin-top: 0.75rem;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      padding: 3rem 1.5rem;
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .stat h3 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--blue-soft), var(--blue-trust));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat p {
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 0.25rem;
+    }
+
+    footer {
+      padding: 3rem 1.5rem;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .footer-logo {
+      font-weight: 800;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .footer-logo span { color: var(--red-emergency); font-family: 'Space Mono', monospace; }
+
+    footer p {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .footer-links a {
+      font-size: 0.75rem;
+      color: var(--gray-400);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--white); }
+
+    @media (min-width: 640px) {
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .hero-buttons { flex-direction: row; }
+    }
+
+    @media (min-width: 768px) {
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        align-items: start;
+      }
+    }
+
+    .tab-switcher {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 2rem;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--gray-400);
+      font-weight: 600;
+      font-size: 0.85rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--blue-trust);
+      color: white;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#" class="logo">
+      <div class="logo-icon">⚖</div>
+      <div class="logo-text">Abogado<span>YA</span></div>
+    </a>
+    <a href="#registro" class="nav-cta">Pre-Registro Gratis</a>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">
+      <span></span>
+      Próximamente en Venezuela
+    </div>
+
+    <h1>Un abogado en tu bolsillo <span class="highlight">cuando más lo necesitas</span></h1>
+
+    <p class="hero-sub">
+      Conecta con un abogado en segundos durante encuentros policiales en alcabalas y puntos de control. Videollamada en vivo, grabación en la nube y alertas a tus familiares.
+    </p>
+
+    <div class="hero-buttons">
+      <a href="#registro" class="btn-primary">🛡️ Quiero Protegerme</a>
+      <a href="#abogados" class="btn-secondary">⚖ Soy Abogado</a>
+    </div>
+
+    <div class="hero-legal">
+      <p>
+        <strong>100% Legal.</strong> Respaldado por la Resolución Conjunta Nº 109 (Gaceta Oficial Nº 42.458) que garantiza tu derecho a grabar procedimientos policiales en puntos de control.
+      </p>
+    </div>
+  </section>
+
+  <section class="phone-section">
+    <div class="phone-mockup">
+      <div class="phone-screen">
+        <div class="phone-status">
+          <div class="dot"></div>
+          Abogado de guardia disponible
+        </div>
+        <div class="phone-logo-small">Abogado<span>YA</span></div>
+        <div class="phone-tagline">Tu escudo legal 24/7</div>
+        <div class="emergency-btn">
+          <div class="icon">🆘</div>
+          <div class="text">EMERGENCIA</div>
+        </div>
+        <div class="phone-instruction">Toca para conectar con un abogado</div>
+        <div class="phone-features">
+          <div class="phone-feat">
+            <div class="pf-icon">📹</div>
+            <div class="pf-text">Video en vivo</div>
+          </div>
+          <div class="phone-feat">
+            <div class="pf-icon">📍</div>
+            <div class="pf-text">GPS activo</div>
+          </div>
+          <div class="phone-feat">
+            <div class="pf-icon">☁️</div>
+            <div class="pf-text">Graba en nube</div>
+          </div>
+          <div class="phone-feat">
+            <div class="pf-icon">🔔</div>
+            <div class="pf-text">Alerta familia</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="section-label">Cómo funciona</p>
+    <h2 class="section-title">3 pasos. 30 segundos. Tu abogado está contigo.</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Abre la app</h3>
+          <p>Cuando un funcionario te detenga en una alcabala o punto de control, abre AbogadoYA y toca el botón rojo de emergencia.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Un abogado se conecta</h3>
+          <p>En segundos, un abogado de guardia se conecta por videollamada. Te guía sobre qué decir, qué no decir, y habla directamente con el funcionario si es necesario.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Todo queda registrado</h3>
+          <p>La videollamada se graba automáticamente en la nube, se envía tu ubicación GPS y tus contactos de emergencia reciben una alerta instantánea.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="section-label">Características</p>
+    <h2 class="section-title">Todo lo que necesitas para proteger tus derechos</h2>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon fi-red">🔴</div>
+        <h3>Botón de Emergencia</h3>
+        <p>Un solo toque conecta con el abogado de guardia más cercano. Sin búsquedas, sin esperas.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-blue">📹</div>
+        <h3>Videollamada en Vivo</h3>
+        <p>El abogado ve y escucha todo en tiempo real. Puede hablar directamente con el funcionario para desescalar la situación.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green">☁️</div>
+        <h3>Grabación en la Nube</h3>
+        <p>Todo se graba y almacena automáticamente. Nadie puede borrar la evidencia aunque te quiten el teléfono.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-gold">📍</div>
+        <h3>GPS y Alertas</h3>
+        <p>Tu ubicación exacta se comparte con tus contactos de emergencia y con el abogado en tiempo real.</p>
+      </div>
+    </div>
+
+    <div class="legal-backing">
+      <h3>⚖ Respaldo Legal Completo</h3>
+      <p>
+        La Resolución Conjunta publicada en la Gaceta Oficial Nº 42.458 establece que los ciudadanos pueden grabar video o audio de los procedimientos en puntos de control por parte de la autoridad policial o militar. Ningún funcionario puede obligarte a entregar tu teléfono ni a borrar el contenido grabado.
+      </p>
+      <p>
+        Respaldado adicionalmente por los artículos 48, 49, 57 y 141 de la Constitución de la República Bolivariana de Venezuela.
+      </p>
+      <p class="cite">Fuente: Gaceta Oficial Nº 42.458, Resolución Conjunta de los Ministerios de Defensa e Interior, Justicia y Paz (septiembre 2022)</p>
+    </div>
+  </section>
+
+  <section class="abogados-section" id="abogados">
+    <div class="section">
+      <p class="section-label">Para Abogados</p>
+      <h2 class="section-title">Tu próximo cliente está en una alcabala ahora mismo</h2>
+
+      <div class="benefit-list">
+        <div class="benefit-item">
+          <div class="benefit-check">✓</div>
+          <div>
+            <h4>Clientes que llegan a ti</h4>
+            <p>Cada emergencia que atiendas es un cliente potencial que ya confía en ti. Sin oficina, sin marketing.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-check">✓</div>
+          <div>
+            <h4>Tú decides cuándo trabajar</h4>
+            <p>Activa tu modo "de guardia" cuando quieras. Sin horarios fijos ni compromisos mínimos.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-check">✓</div>
+          <div>
+            <h4>Construye tu reputación</h4>
+            <p>Los ciudadanos te califican después de cada asistencia. Los mejores abogados aparecen primero.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-check">✓</div>
+          <div>
+            <h4>Registro gratuito</h4>
+            <p>Únete sin costo durante la etapa de lanzamiento. Solo necesitas tu colegiatura vigente.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="registro">
+    <p class="section-label">Pre-Registro</p>
+    <h2 class="section-title">Sé de los primeros. Regístrate gratis.</h2>
+
+    <div class="tab-switcher">
+      <button class="tab-btn active" onclick="switchTab('ciudadano')">🛡️ Soy Ciudadano</button>
+      <button class="tab-btn" onclick="switchTab('abogado')">⚖ Soy Abogado</button>
+    </div>
+
+    <div id="tab-ciudadano" class="tab-content active">
+      <div class="form-container" id="form-ciudadano">
+        <h3>Protege tus derechos</h3>
+        <p class="form-sub">Pre-regístrate y sé de los primeros en usar AbogadoYA cuando lancemos.</p>
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" id="c-nombre" placeholder="Tu nombre">
+        </div>
+        <div class="form-group">
+          <label>Teléfono / WhatsApp</label>
+          <input type="tel" id="c-telefono" placeholder="+58 4XX XXX XXXX">
+        </div>
+        <div class="form-group">
+          <label>Ciudad</label>
+          <select id="c-ciudad">
+            <option value="">Selecciona tu ciudad</option>
+            <option>Caracas</option>
+            <option>Maracaibo</option>
+            <option>Valencia</option>
+            <option>Barquisimeto</option>
+            <option>Maracay</option>
+            <option>Barcelona / Puerto La Cruz</option>
+            <option>Ciudad Guayana</option>
+            <option>Maturín</option>
+            <option>San Cristóbal</option>
+            <option>Mérida</option>
+            <option>Otra ciudad</option>
+          </select>
+        </div>
+        <button class="form-submit red" id="btn-ciudadano" onclick="submitCiudadano()">🛡️ Quiero Pre-Registrarme</button>
+        <p class="form-note">Gratis. Sin compromiso. Te avisaremos cuando lancemos.</p>
+      </div>
+      <div id="success-ciudadano" style="display:none;text-align:center;padding:2rem 1rem;">
+        <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
+        <h3 style="color:#22C55E;margin-bottom:0.5rem;">¡Registro exitoso!</h3>
+        <p style="font-size:0.85rem;color:#94A3B8;">Te avisaremos cuando AbogadoYA esté disponible.</p>
+      </div>
+    </div>
+
+    <div id="tab-abogado" class="tab-content">
+      <div class="form-container" id="form-abogado">
+        <h3>Únete como Abogado</h3>
+        <p class="form-sub">Regístrate para ser parte del primer equipo de abogados de guardia en Venezuela.</p>
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" id="a-nombre" placeholder="Tu nombre">
+        </div>
+        <div class="form-group">
+          <label>Nº de Colegiatura (INPREABOGADO)</label>
+          <input type="text" id="a-inpre" placeholder="Ej: 123.456">
+        </div>
+        <div class="form-group">
+          <label>Especialidad principal</label>
+          <select id="a-especialidad">
+            <option value="">Selecciona tu especialidad</option>
+            <option>Derecho Penal</option>
+            <option>Derecho Constitucional</option>
+            <option>Derechos Humanos</option>
+            <option>Derecho Civil</option>
+            <option>Derecho Laboral</option>
+            <option>Derecho Mercantil</option>
+            <option>Derecho Administrativo</option>
+            <option>Otra especialidad</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Teléfono / WhatsApp</label>
+          <input type="tel" id="a-telefono" placeholder="+58 4XX XXX XXXX">
+        </div>
+        <div class="form-group">
+          <label>Ciudad donde ejerce</label>
+          <select id="a-ciudad">
+            <option value="">Selecciona tu ciudad</option>
+            <option>Caracas</option>
+            <option>Maracaibo</option>
+            <option>Valencia</option>
+            <option>Barquisimeto</option>
+            <option>Maracay</option>
+            <option>Barcelona / Puerto La Cruz</option>
+            <option>Ciudad Guayana</option>
+            <option>Maturín</option>
+            <option>San Cristóbal</option>
+            <option>Mérida</option>
+            <option>Otra ciudad</option>
+          </select>
+        </div>
+        <button class="form-submit" id="btn-abogado" onclick="submitAbogado()">⚖ Registrarme como Abogado</button>
+        <p class="form-note">Registro gratuito durante el lanzamiento. Verificaremos tu colegiatura.</p>
+      </div>
+      <div id="success-abogado" style="display:none;text-align:center;padding:2rem 1rem;">
+        <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
+        <h3 style="color:#22C55E;margin-bottom:0.5rem;">¡Registro exitoso!</h3>
+        <p style="font-size:0.85rem;color:#94A3B8;">Revisaremos tu colegiatura y te contactaremos pronto.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <h3>24/7</h3>
+      <p>Disponibilidad</p>
+    </div>
+    <div class="stat">
+      <h3>&lt;30s</h3>
+      <p>Conexión</p>
+    </div>
+    <div class="stat">
+      <h3>100%</h3>
+      <p>Legal</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo">Abogado<span>YA</span></div>
+    <p>
+      Tu escudo legal de emergencia. Protege tus derechos en encuentros con la autoridad en Venezuela.
+    </p>
+    <p style="margin-top: 0.75rem;">
+      AbogadoYA no es un bufete de abogados. AbogadoYA es una plataforma tecnológica que conecta ciudadanos con abogados independientes.
+    </p>
+    <div class="footer-links">
+      <a href="#">Términos</a>
+      <a href="#">Privacidad</a>
+      <a href="#">Contacto</a>
+    </div>
+    <p style="margin-top: 1.5rem; font-size: 0.65rem;">© 2026 AbogadoYA. Todos los derechos reservados.</p>
+  </footer>
+
+  <div style="position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(100px);background:#22C55E;color:#0A1628;padding:0.75rem 1.5rem;border-radius:12px;font-weight:700;font-size:0.85rem;z-index:10000;transition:transform 0.4s ease;box-shadow:0 8px 32px rgba(34,197,94,0.4);white-space:nowrap;" id="toast"></div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+
+  <script>
     const SUPABASE_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
-    
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // Hacemos las funciones globales para que los botones HTML puedan llamarlas
-    window.submitCiudadano = async function() {
-      const nombre = document.getElementById('c-nombre').value.trim();
-      const telefono = document.getElementById('c-telefono').value.trim();
-      const ciudad = document.getElementById('c-ciudad').value;
-      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
-      
-      const btn = document.getElementById('btn-ciudadano');
-      btn.disabled = true; btn.textContent = 'Registrando...';
-      
-      try {
-        const { error } = await supabase.from('preregistros').insert({
-          tipo: 'ciudadano', nombre, telefono, ciudad: ciudad || null, fuente: 'landing'
-        });
-        if (error) throw error;
-        
-        document.getElementById('form-ciudadano').style.display = 'none';
-        document.getElementById('success-ciudadano').style.display = 'block';
-        showToast('✅ ¡Registro exitoso!');
-      } catch (err) {
-        console.error(err);
-        showToast('Error al registrar. Intenta de nuevo.', true);
-        btn.disabled = false; btn.textContent = '🛡️ Quiero Pre-Registrarme';
-      }
-    };
-
-    window.submitAbogado = async function() {
-      const nombre = document.getElementById('a-nombre').value.trim();
-      const telefono = document.getElementById('a-telefono').value.trim();
-      const inpre = document.getElementById('a-inpre').value.trim();
-      const especialidad = document.getElementById('a-especialidad').value;
-      const ciudad = document.getElementById('a-ciudad').value;
-      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
-      
-      const btn = document.getElementById('btn-abogado');
-      btn.disabled = true; btn.textContent = 'Registrando...';
-      
-      try {
-        const { error } = await supabase.from('preregistros').insert({
-          tipo: 'abogado', nombre, telefono, ciudad: ciudad || null,
-          inpreabogado: inpre || null, especialidad: especialidad || null, fuente: 'landing'
-        });
-        if (error) throw error;
-        
-        document.getElementById('form-abogado').style.display = 'none';
-        document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ ¡Registro exitoso!');
-      } catch (err) {
-        console.error(err);
-        showToast('Error al registrar. Intenta de nuevo.', true);
-        btn.disabled = false; btn.textContent = '⚖ Registrarme como Abogado';
-      }
-    };
+    let supabase;
+    try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) { console.error(e); }
 
     function showToast(msg, isError) {
       const t = document.getElementById('toast');
@@ -68,4 +1073,82 @@
       t.style.transform = 'translateX(-50%) translateY(0)';
       setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(100px)'; }, 3500);
     }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      if (tab === 'ciudadano') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-ciudadano').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-abogado').classList.add('active');
+      }
+    }
+
+    async function submitCiudadano() {
+      const nombre = document.getElementById('c-nombre').value.trim();
+      const telefono = document.getElementById('c-telefono').value.trim();
+      const ciudad = document.getElementById('c-ciudad').value;
+      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
+      const btn = document.getElementById('btn-ciudadano');
+      btn.disabled = true; btn.textContent = 'Registrando...';
+      try {
+        if (supabase) {
+          const { error } = await supabase.from('preregistros').insert({
+            tipo: 'ciudadano', nombre, telefono, ciudad: ciudad || null, fuente: 'landing'
+          });
+          if (error) throw error;
+        }
+        document.getElementById('form-ciudadano').style.display = 'none';
+        document.getElementById('success-ciudadano').style.display = 'block';
+        showToast('✅ ¡Registro exitoso!');
+      } catch (err) {
+        showToast('Error al registrar. Intenta de nuevo.', true);
+        btn.disabled = false; btn.textContent = '🛡️ Quiero Pre-Registrarme';
+      }
+    }
+
+    async function submitAbogado() {
+      const nombre = document.getElementById('a-nombre').value.trim();
+      const telefono = document.getElementById('a-telefono').value.trim();
+      const inpre = document.getElementById('a-inpre').value.trim();
+      const especialidad = document.getElementById('a-especialidad').value;
+      const ciudad = document.getElementById('a-ciudad').value;
+      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
+      const btn = document.getElementById('btn-abogado');
+      btn.disabled = true; btn.textContent = 'Registrando...';
+      try {
+        if (supabase) {
+          const { error } = await supabase.from('preregistros').insert({
+            tipo: 'abogado', nombre, telefono, ciudad: ciudad || null,
+            inpreabogado: inpre || null, especialidad: especialidad || null, fuente: 'landing'
+          });
+          if (error) throw error;
+        }
+        document.getElementById('form-abogado').style.display = 'none';
+        document.getElementById('success-abogado').style.display = 'block';
+        showToast('✅ ¡Registro exitoso!');
+      } catch (err) {
+        showToast('Error al registrar. Intenta de nuevo.', true);
+        btn.disabled = false; btn.textContent = '⚖ Registrarme como Abogado';
+      }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.step, .feature-card, .benefit-item').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'all 0.6s ease';
+      observer.observe(el);
+    });
   </script>
+</body>
+</html>
