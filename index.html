@@ -928,12 +928,20 @@
     </div>
 
     <div id="tab-ciudadano" class="tab-content active">
-      <div class="form-container" id="form-ciudadano">
+     <div class="form-container" id="form-ciudadano">
         <h3>Protege tus derechos</h3>
-        <p class="form-sub">Pre-regístrate y sé de los primeros en usar AbogadoYA cuando lancemos.</p>
+        <p class="form-sub">Crea tu cuenta de ciudadano para estar listo ante cualquier emergencia.</p>
         <div class="form-group">
           <label>Nombre completo</label>
           <input type="text" id="c-nombre" placeholder="Tu nombre">
+        </div>
+        <div class="form-group">
+          <label>Correo Electrónico</label>
+          <input type="email" id="c-email" placeholder="tu@correo.com">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="c-password" placeholder="Mínimo 6 caracteres">
         </div>
         <div class="form-group">
           <label>Teléfono / WhatsApp</label>
@@ -956,8 +964,7 @@
             <option>Otra ciudad</option>
           </select>
         </div>
-        <button class="form-submit red" id="btn-ciudadano" onclick="submitCiudadano()">🛡️ Quiero Pre-Registrarme</button>
-        <p class="form-note">Gratis. Sin compromiso. Te avisaremos cuando lancemos.</p>
+        <button class="form-submit red" id="btn-ciudadano" onclick="submitCiudadano()">🛡️ Crear mi Cuenta</button>
       </div>
       <div id="success-ciudadano" style="display:none;text-align:center;padding:2rem 1rem;">
         <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
@@ -969,14 +976,26 @@
     <div id="tab-abogado" class="tab-content">
       <div class="form-container" id="form-abogado">
         <h3>Únete como Abogado</h3>
-        <p class="form-sub">Regístrate para ser parte del primer equipo de abogados de guardia en Venezuela.</p>
+        <p class="form-sub">Sube tus credenciales para ser validado en el sistema.</p>
         <div class="form-group">
           <label>Nombre completo</label>
           <input type="text" id="a-nombre" placeholder="Tu nombre">
         </div>
         <div class="form-group">
+          <label>Correo Electrónico</label>
+          <input type="email" id="a-email" placeholder="tu@correo.com">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="a-password" placeholder="Mínimo 6 caracteres">
+        </div>
+        <div class="form-group">
           <label>Nº de Colegiatura (INPREABOGADO)</label>
           <input type="text" id="a-inpre" placeholder="Ej: 123.456">
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label>Foto de tu Carnet (Verificación SAREN)</label>
+          <input type="file" id="a-carnet" accept="image/png, image/jpeg, application/pdf" style="padding: 0.5rem; border: 1px dashed rgba(255,255,255,0.2);">
         </div>
         <div class="form-group">
           <label>Especialidad principal</label>
@@ -1013,8 +1032,7 @@
             <option>Otra ciudad</option>
           </select>
         </div>
-        <button class="form-submit" id="btn-abogado" onclick="submitAbogado()">⚖ Registrarme como Abogado</button>
-        <p class="form-note">Registro gratuito durante el lanzamiento. Verificaremos tu colegiatura.</p>
+        <button class="form-submit" id="btn-abogado" onclick="submitAbogado()">⚖ Crear cuenta y Enviar Documentos</button>
       </div>
       <div id="success-abogado" style="display:none;text-align:center;padding:2rem 1rem;">
         <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
@@ -1085,58 +1103,100 @@
 
     async function submitCiudadano() {
       const nombre = document.getElementById('c-nombre').value.trim();
+      const email = document.getElementById('c-email').value.trim();
+      const password = document.getElementById('c-password').value;
       const telefono = document.getElementById('c-telefono').value.trim();
       const ciudad = document.getElementById('c-ciudad').value;
       
-      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
+      if (!nombre || !email || !password || !telefono || !ciudad) { showToast('Completa todos los campos obligatorios', true); return; }
       
       const btn = document.getElementById('btn-ciudadano');
-      btn.disabled = true; btn.textContent = 'Registrando...';
+      btn.disabled = true; btn.textContent = 'Creando cuenta...';
       
       try {
-        const { error } = await dbClient.from('preregistros').insert({
-          tipo: 'ciudadano', nombre, telefono, ciudad: ciudad || null, fuente: 'landing'
+        // 1. Crear usuario en Auth
+        const { data: authData, error: authError } = await dbClient.auth.signUp({
+          email: email,
+          password: password,
         });
-        
-        if (error) throw error;
+        if (authError) throw authError;
+
+        // 2. Insertar perfil en la tabla usuarios pública
+        const { error: dbError } = await dbClient.from('usuarios').insert({
+          auth_id: authData.user.id,
+          nombre_completo: nombre,
+          email: email,
+          telefono: telefono,
+          ciudad: ciudad
+        });
+        if (dbError) throw dbError;
         
         document.getElementById('form-ciudadano').style.display = 'none';
         document.getElementById('success-ciudadano').style.display = 'block';
-        showToast('✅ ¡Registro exitoso!');
+        showToast('✅ ¡Cuenta creada exitosamente!');
       } catch (err) {
         console.error(err);
-        showToast('Error al registrar. Intenta de nuevo.', true);
-        btn.disabled = false; btn.textContent = '🛡️ Quiero Pre-Registrarme';
+        showToast(err.message || 'Error al crear cuenta.', true);
+        btn.disabled = false; btn.textContent = '🛡️ Crear mi Cuenta';
       }
     }
 
-    async function submitAbogado() {
+   async function submitAbogado() {
       const nombre = document.getElementById('a-nombre').value.trim();
-      const telefono = document.getElementById('a-telefono').value.trim();
+      const email = document.getElementById('a-email').value.trim();
+      const password = document.getElementById('a-password').value;
       const inpre = document.getElementById('a-inpre').value.trim();
       const especialidad = document.getElementById('a-especialidad').value;
+      const telefono = document.getElementById('a-telefono').value.trim();
       const ciudad = document.getElementById('a-ciudad').value;
+      const fileInput = document.getElementById('a-carnet');
       
-      if (!nombre || !telefono) { showToast('Completa nombre y teléfono', true); return; }
+      if (!nombre || !email || !password || !telefono || !inpre || !ciudad || !especialidad || !fileInput.files[0]) { 
+        showToast('Completa todos los datos y sube tu foto del carnet', true); return; 
+      }
       
       const btn = document.getElementById('btn-abogado');
-      btn.disabled = true; btn.textContent = 'Registrando...';
+      btn.disabled = true; btn.textContent = 'Procesando documentos...';
       
       try {
-        const { error } = await dbClient.from('preregistros').insert({
-          tipo: 'abogado', nombre, telefono, ciudad: ciudad || null,
-          inpreabogado: inpre || null, especialidad: especialidad || null, fuente: 'landing'
+        // 1. Crear usuario en Auth
+        const { data: authData, error: authError } = await dbClient.auth.signUp({
+          email: email,
+          password: password,
         });
+        if (authError) throw authError;
         
-        if (error) throw error;
+        const userId = authData.user.id;
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${userId}/carnet_inpre.${fileExt}`;
+
+        // 2. Subir foto al Bucket "documentos_kyc"
+        const { error: uploadError } = await dbClient.storage
+          .from('documentos_kyc')
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        // 3. Insertar perfil en la tabla abogados
+        const { error: dbError } = await dbClient.from('abogados').insert({
+          auth_id: userId,
+          nombre_completo: nombre,
+          email: email,
+          telefono: telefono,
+          ciudad: ciudad,
+          inpreabogado: inpre,
+          especialidad: especialidad,
+          documento_colegiatura_url: filePath
+        });
+        if (dbError) throw dbError;
         
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ ¡Registro exitoso!');
+        showToast('✅ ¡Documentos enviados!');
       } catch (err) {
         console.error(err);
-        showToast('Error al registrar. Intenta de nuevo.', true);
-        btn.disabled = false; btn.textContent = '⚖ Registrarme como Abogado';
+        showToast(err.message || 'Error en el registro.', true);
+        btn.disabled = false; btn.textContent = '⚖ Crear cuenta y Enviar Documentos';
       }
     }
 
