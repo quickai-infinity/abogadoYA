@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>App — AbogadoYA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0A1628;
+      --blue-trust: #2563EB;
+      --red-emergency: #EF4444;
+      --white: #FFFFFF;
+    }
+    body {
+      margin: 0;
+      background: var(--navy);
+      color: var(--white);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    /* Interfaz Ciudadano */
+    #panel-ciudadano { display: none; }
+    .sos-btn {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ff4d4d, var(--red-emergency));
+      border: 8px solid rgba(239, 68, 68, 0.2);
+      color: white;
+      font-size: 2rem;
+      font-weight: 800;
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.4);
+      cursor: pointer;
+    }
+    /* Interfaz Abogado */
+    #panel-abogado { display: none; }
+    .status-card {
+      background: rgba(255,255,255,0.05);
+      padding: 1.5rem;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 300px;
+    }
+    .nav-bar {
+      display: flex;
+      justify-content: space-around;
+      padding: 1rem;
+      background: rgba(18, 31, 54, 0.9);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .nav-item { color: #64748B; text-decoration: none; font-size: 0.7rem; font-weight: 600; }
+    .nav-item.active { color: var(--blue-trust); }
+    #loader { position: fixed; inset: 0; background: var(--navy); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  </style>
+</head>
+<body>
+
+  <div id="loader">Cargando AbogadoYA...</div>
+
+  <header>
+    <div style="font-weight: 800;">Abogado<span>YA</span></div>
+    <button onclick="logout()" style="background:none; border:1px solid #444; color:white; border-radius:8px; padding:5px 10px; font-size:12px;">Salir</button>
+  </header>
+
+  <main class="main-content">
+    <div id="panel-ciudadano">
+      <h2 id="user-name">Hola, Ciudadano</h2>
+      <p style="color: #94A3B8; margin-bottom: 2rem;">Presiona en caso de emergencia policial</p>
+      <button class="sos-btn">SOS</button>
+    </div>
+
+    <div id="panel-abogado">
+      <h2>Panel Legal</h2>
+      <div class="status-card">
+        <p id="abogado-status">Estado: Verificando Credenciales...</p>
+        <div style="font-size: 0.8rem; color: #94A3B8;">Tu INPRE está siendo consultado en el SAREN.</div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="nav-bar">
+    <a href="#" class="nav-item active">INICIO</a>
+    <a href="#" class="nav-item">IA LEGAL</a>
+    <a href="#" class="nav-item">PERFIL</a>
+  </nav>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
+    const supabase = window.supabase.createClient(API_URL, API_KEY);
+
+    async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Buscar si es abogado o ciudadano
+      const { data: abogado } = await supabase.from('abogados').select('*').eq('auth_id', user.id).single();
+      
+      document.getElementById('loader').style.display = 'none';
+
+      if (abogado) {
+        document.getElementById('panel-abogado').style.display = 'block';
+        document.getElementById('abogado-status').innerText = `Estado: ${abogado.estado || 'Pendiente'}`;
+      } else {
+        document.getElementById('panel-ciudadano').style.display = 'block';
+      }
+    }
+
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = 'index.html';
+    }
+
+    checkUser();
+  </script>
+</body>
+</html>
