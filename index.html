@@ -1134,7 +1134,7 @@ async function submitCiudadano() {
       }
     }
 
-    async function submitAbogado() {
+   async function submitAbogado() {
       const nombre = document.getElementById('a-nombre').value.trim();
       const email = document.getElementById('a-email').value.trim();
       const password = document.getElementById('a-password').value;
@@ -1142,28 +1142,49 @@ async function submitCiudadano() {
       const especialidad = document.getElementById('a-especialidad').value;
       const telefono = document.getElementById('a-telefono').value.trim();
       const ciudad = document.getElementById('a-ciudad').value;
+      const fileInput = document.getElementById('a-carnet');
       
-      if (!nombre || !email || !password || !inpre) { 
-        showToast('Completa los campos obligatorios', true); return; 
+      if (!nombre || !email || !password || !inpre || !fileInput.files[0]) { 
+        showToast('Completa todos los campos y sube tu carnet', true); return; 
       }
       
       const btn = document.getElementById('btn-abogado');
-      btn.disabled = true; btn.textContent = 'Procesando...';
+      btn.disabled = true; btn.textContent = 'Procesando registro...';
       
       try {
-        const { error } = await dbClient.auth.signUp({
+        // 1. Crear usuario en Auth (El Trigger creará la fila en la tabla abogados)
+        const { data: authData, error: authError } = await dbClient.auth.signUp({
           email,
           password,
           options: {
             data: { tipo: 'abogado', nombre_completo: nombre, telefono, ciudad, inpre, especialidad }
           }
         });
-        if (error) throw error;
+        if (authError) throw authError;
+        
+        const userId = authData.user.id;
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${userId}/carnet_inpre.${fileExt}`;
 
+        // 2. Subir foto al Bucket "documentos_kyc"
+        const { error: uploadError } = await dbClient.storage
+          .from('documentos_kyc')
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        // 3. Actualizar la columna 'documento_colegiatura_url' en la tabla abogados
+        const { error: updateError } = await dbClient
+          .from('abogados')
+          .update({ documento_colegiatura_url: filePath })
+          .eq('auth_id', userId);
+        if (updateError) throw updateError;
+        
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ Registro exitoso. Confirma tu correo.');
+        showToast('✅ Registro y documentos enviados con éxito');
       } catch (err) {
+        console.error(err);
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '⚖ Crear cuenta';
       }
