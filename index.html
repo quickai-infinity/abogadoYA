@@ -743,6 +743,26 @@
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    /* EFECTO TÁCTIL PROFESIONAL */
+    button, .nav-cta, .btn-primary, .btn-secondary, .form-submit, .tab-btn {
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      outline: none;
+    }
+    button:active, .nav-cta:active, .btn-primary:active, .btn-secondary:active, .form-submit:active, .tab-btn:active {
+      transform: scale(0.95);
+      filter: brightness(0.8);
+    }
+    /* MODAL DE LOGIN PROFESIONAL */
+    #login-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+      display: none; align-items: center; justify-content: center; z-index: 9999; padding: 1.5rem;
+    }
+    .modal-content {
+      background: var(--navy-light); width: 100%; max-width: 400px; padding: 2.5rem;
+      border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+    }
   </style>
 </head>
 <body>
@@ -1235,6 +1255,40 @@
       el.style.transition = 'all 0.6s ease';
       observer.observe(el);
     });
+    function showLogin() { document.getElementById('login-modal').style.display = 'flex'; }
+    function hideLogin() { document.getElementById('login-modal').style.display = 'none'; }
+
+    async function login() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-pass').value;
+      if(!email || !password) return alert("Completa los datos");
+      
+      const btn = document.querySelector('#login-modal .form-submit');
+      btn.innerText = 'Verificando...';
+      
+      const { error } = await dbClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        alert("Error: " + error.message);
+        btn.innerText = 'Entrar ahora';
+      } else {
+        window.location.href = 'app.html';
+      }
+    }
   </script>
+  <div id="login-modal">
+    <div class="modal-content">
+      <h2 style="text-align:center; margin-bottom:1.5rem; font-weight:800;">Iniciar Sesión</h2>
+      <div class="form-group">
+        <label>Correo Electrónico</label>
+        <input type="email" id="login-email" placeholder="tu@correo.com">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••">
+      </div>
+      <button class="form-submit" onclick="login()" style="background:var(--blue-trust); margin-top:1rem;">Entrar ahora</button>
+      <button onclick="hideLogin()" style="width:100%; background:none; border:none; color:#64748B; margin-top:1.2rem; font-size:0.9rem; cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
 </body>
 </html>

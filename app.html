@@ -72,6 +72,18 @@
     .nav-item { color: #64748B; text-decoration: none; font-size: 0.7rem; font-weight: 600; }
     .nav-item.active { color: var(--blue-trust); }
     #loader { position: fixed; inset: 0; background: var(--navy); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .nav-item {
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+    }
+    .nav-item:active {
+      transform: scale(0.9);
+      background: rgba(255,255,255,0.05);
+    }
   </style>
 </head>
 <body>
@@ -100,9 +112,18 @@
   </main>
 
   <nav class="nav-bar">
-    <a href="#" class="nav-item active">INICIO</a>
-    <a href="#" class="nav-item">IA LEGAL</a>
-    <a href="#" class="nav-item">PERFIL</a>
+    <a href="#" class="nav-item active">
+      <span style="font-size:1.5rem">🛡️</span>
+      <span>INICIO</span>
+    </a>
+    <a href="#" class="nav-item">
+      <span style="font-size:1.5rem">⚖️</span>
+      <span>IA LEGAL</span>
+    </a>
+    <a href="#" class="nav-item">
+      <span style="font-size:1.5rem">👤</span>
+      <span>PERFIL</span>
+    </a>
   </nav>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
