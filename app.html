@@ -107,37 +107,62 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
+   const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
-    const supabase = window.supabase.createClient(API_URL, API_KEY);
+    
+    // Usamos dbApp para que no choque con nada
+    let dbApp;
 
     async function checkUser() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const loader = document.getElementById('loader');
       
-      if (!user) {
-        window.location.href = 'index.html';
-        return;
-      }
+      try {
+        // 1. Inicializar cliente
+        dbApp = window.supabase.createClient(API_URL, API_KEY);
 
-      // Buscar si es abogado o ciudadano
-      const { data: abogado } = await supabase.from('abogados').select('*').eq('auth_id', user.id).single();
-      
-      document.getElementById('loader').style.display = 'none';
+        // 2. Obtener sesión actual
+        const { data: { user }, error: authError } = await dbApp.auth.getUser();
+        
+        if (authError || !user) {
+          console.error("No hay sesión activa:", authError);
+          window.location.href = 'index.html';
+          return;
+        }
 
-      if (abogado) {
-        document.getElementById('panel-abogado').style.display = 'block';
-        document.getElementById('abogado-status').innerText = `Estado: ${abogado.estado || 'Pendiente'}`;
-      } else {
-        document.getElementById('panel-ciudadano').style.display = 'block';
+        // 3. Identificar tipo de usuario (Primero buscamos en abogados)
+        const { data: abogado, error: abogadoError } = await dbApp
+          .from('abogados')
+          .select('*')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+
+        // 4. Quitar pantalla de carga
+        loader.style.display = 'none';
+
+        if (abogado) {
+          document.getElementById('panel-abogado').style.display = 'block';
+          document.getElementById('abogado-status').innerText = `Estado: ${abogado.estado || 'Pendiente'}`;
+        } else {
+          document.getElementById('panel-ciudadano').style.display = 'block';
+          const nombre = user.user_metadata.nombre_completo || 'Usuario';
+          document.getElementById('user-name').innerText = `Hola, ${nombre}`;
+        }
+
+      } catch (err) {
+        console.error("Error crítico en la App:", err);
+        loader.innerHTML = `<div style="color:red; padding:20px;">Error al cargar datos.<br>${err.message}</div>`;
       }
     }
 
     async function logout() {
-      await supabase.auth.signOut();
-      window.location.href = 'index.html';
+      if (dbApp) {
+        await dbApp.auth.signOut();
+        window.location.href = 'index.html';
+      }
     }
 
-    checkUser();
+    // Iniciar el chequeo al cargar la página
+    window.onload = checkUser;
   </script>
 </body>
 </html>

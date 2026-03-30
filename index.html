@@ -2,9 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AbogadoYA — Asistencia Legal de Emergencia 24/7</title>
   <meta name="description" content="Conecta con un abogado en segundos durante encuentros policiales. Protege tus derechos en alcabalas y puntos de control en Venezuela.">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0A1628">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
   <style>
@@ -29,7 +34,6 @@
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html { scroll-behavior: smooth; }
 
     body {
@@ -537,8 +541,7 @@
       font-size: 1.1rem;
       margin-bottom: 1rem;
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      align-items: center; gap: 0.5rem;
     }
 
     .legal-backing p {
@@ -931,7 +934,7 @@
     </div>
 
     <div id="tab-ciudadano" class="tab-content active">
-     <div class="form-container" id="form-ciudadano">
+      <div class="form-container" id="form-ciudadano">
         <h3>Protege tus derechos</h3>
         <p class="form-sub">Crea tu cuenta de ciudadano para estar listo ante cualquier emergencia.</p>
         <div class="form-group">
@@ -972,7 +975,7 @@
       <div id="success-ciudadano" style="display:none;text-align:center;padding:2rem 1rem;">
         <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
         <h3 style="color:#22C55E;margin-bottom:0.5rem;">¡Registro exitoso!</h3>
-        <p style="font-size:0.85rem;color:#94A3B8;">Te avisaremos cuando AbogadoYA esté disponible.</p>
+        <p style="font-size:0.85rem;color:#94A3B8;">Bienvenido a AbogadoYA.</p>
       </div>
     </div>
 
@@ -1040,7 +1043,7 @@
       <div id="success-abogado" style="display:none;text-align:center;padding:2rem 1rem;">
         <div style="font-size:3rem;margin-bottom:0.75rem;">✅</div>
         <h3 style="color:#22C55E;margin-bottom:0.5rem;">¡Registro exitoso!</h3>
-        <p style="font-size:0.85rem;color:#94A3B8;">Revisaremos tu colegiatura y te contactaremos pronto.</p>
+        <p style="font-size:0.85rem;color:#94A3B8;">Validaremos tus credenciales pronto.</p>
       </div>
     </div>
   </section>
@@ -1080,8 +1083,16 @@
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     
-    // Cambio de nombre a dbClient para evitar el SyntaxError
     const dbClient = window.supabase.createClient(API_URL, API_KEY);
+
+    // FUNCIÓN DE REDIRECCIÓN AUTOMÁTICA
+    async function checkExistingSession() {
+      const { data: { session } } = await dbClient.auth.getSession();
+      if (session) {
+        window.location.href = 'app.html';
+      }
+    }
+    checkExistingSession();
 
     function showToast(msg, isError) {
       const t = document.getElementById('toast');
@@ -1090,6 +1101,25 @@
       t.style.color = isError ? '#fff' : '#0A1628';
       t.style.transform = 'translateX(-50%) translateY(0)';
       setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(100px)'; }, 3500);
+    }
+
+    // LÓGICA DE LOGIN
+    function showLogin() {
+      const email = prompt("Email:");
+      if (!email) return;
+      const password = prompt("Contraseña:");
+      if (!password) return;
+      login(email, password);
+    }
+
+    async function login(email, password) {
+      showToast('Entrando...', false);
+      const { error } = await dbClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        showToast(error.message, true);
+      } else {
+        window.location.href = 'app.html';
+      }
     }
 
     function switchTab(tab) {
@@ -1104,7 +1134,7 @@
       }
     }
 
-async function submitCiudadano() {
+    async function submitCiudadano() {
       const nombre = document.getElementById('c-nombre').value.trim();
       const email = document.getElementById('c-email').value.trim();
       const password = document.getElementById('c-password').value;
@@ -1130,14 +1160,15 @@ async function submitCiudadano() {
 
         document.getElementById('form-ciudadano').style.display = 'none';
         document.getElementById('success-ciudadano').style.display = 'block';
-        showToast('✅ Registro exitoso. Confirma tu correo.');
+        showToast('✅ Registro exitoso. Entrando...');
+        setTimeout(() => window.location.href = 'app.html', 1500);
       } catch (err) {
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '🛡️ Crear mi Cuenta';
       }
     }
 
-   async function submitAbogado() {
+    async function submitAbogado() {
       const nombre = document.getElementById('a-nombre').value.trim();
       const email = document.getElementById('a-email').value.trim();
       const password = document.getElementById('a-password').value;
@@ -1155,7 +1186,6 @@ async function submitCiudadano() {
       btn.disabled = true; btn.textContent = 'Procesando registro...';
       
       try {
-        // 1. Crear usuario en Auth (El Trigger creará la fila en la tabla abogados)
         const { data: authData, error: authError } = await dbClient.auth.signUp({
           email,
           password,
@@ -1170,24 +1200,21 @@ async function submitCiudadano() {
         const fileExt = file.name.split('.').pop();
         const filePath = `${userId}/carnet_inpre.${fileExt}`;
 
-        // 2. Subir foto al Bucket "documentos_kyc"
         const { error: uploadError } = await dbClient.storage
           .from('documentos_kyc')
           .upload(filePath, file);
         if (uploadError) throw uploadError;
 
-        // 3. Actualizar la columna 'documento_colegiatura_url' en la tabla abogados
-        const { error: updateError } = await dbClient
+        await dbClient
           .from('abogados')
           .update({ documento_colegiatura_url: filePath })
           .eq('auth_id', userId);
-        if (updateError) throw updateError;
         
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ Registro y documentos enviados con éxito');
+        showToast('✅ Registro exitoso. Entrando...');
+        setTimeout(() => window.location.href = 'app.html', 1500);
       } catch (err) {
-        console.error(err);
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '⚖ Crear cuenta';
       }
