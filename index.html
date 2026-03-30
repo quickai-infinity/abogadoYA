@@ -1101,47 +1101,40 @@
       }
     }
 
-    async function submitCiudadano() {
+async function submitCiudadano() {
       const nombre = document.getElementById('c-nombre').value.trim();
       const email = document.getElementById('c-email').value.trim();
       const password = document.getElementById('c-password').value;
       const telefono = document.getElementById('c-telefono').value.trim();
       const ciudad = document.getElementById('c-ciudad').value;
       
-      if (!nombre || !email || !password || !telefono || !ciudad) { showToast('Completa todos los campos obligatorios', true); return; }
+      if (!nombre || !email || !password || !telefono || !ciudad) { 
+        showToast('Completa todos los campos', true); return; 
+      }
       
       const btn = document.getElementById('btn-ciudadano');
-      btn.disabled = true; btn.textContent = 'Creando cuenta...';
+      btn.disabled = true; btn.textContent = 'Procesando...';
       
       try {
-        // 1. Crear usuario en Auth
-        const { data: authData, error: authError } = await dbClient.auth.signUp({
-          email: email,
-          password: password,
+        const { error } = await dbClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { tipo: 'ciudadano', nombre_completo: nombre, telefono, ciudad }
+          }
         });
-        if (authError) throw authError;
+        if (error) throw error;
 
-        // 2. Insertar perfil en la tabla usuarios pública
-        const { error: dbError } = await dbClient.from('usuarios').insert({
-          auth_id: authData.user.id,
-          nombre_completo: nombre,
-          email: email,
-          telefono: telefono,
-          ciudad: ciudad
-        });
-        if (dbError) throw dbError;
-        
         document.getElementById('form-ciudadano').style.display = 'none';
         document.getElementById('success-ciudadano').style.display = 'block';
-        showToast('✅ ¡Cuenta creada exitosamente!');
+        showToast('✅ Registro exitoso. Revisa tu email.');
       } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Error al crear cuenta.', true);
+        showToast(err.message, true);
         btn.disabled = false; btn.textContent = '🛡️ Crear mi Cuenta';
       }
     }
 
-   async function submitAbogado() {
+    async function submitAbogado() {
       const nombre = document.getElementById('a-nombre').value.trim();
       const email = document.getElementById('a-email').value.trim();
       const password = document.getElementById('a-password').value;
@@ -1149,53 +1142,29 @@
       const especialidad = document.getElementById('a-especialidad').value;
       const telefono = document.getElementById('a-telefono').value.trim();
       const ciudad = document.getElementById('a-ciudad').value;
-      const fileInput = document.getElementById('a-carnet');
       
-      if (!nombre || !email || !password || !telefono || !inpre || !ciudad || !especialidad || !fileInput.files[0]) { 
-        showToast('Completa todos los datos y sube tu foto del carnet', true); return; 
+      if (!nombre || !email || !password || !telefono || !inpre || !ciudad) { 
+        showToast('Completa todos los campos', true); return; 
       }
       
       const btn = document.getElementById('btn-abogado');
-      btn.disabled = true; btn.textContent = 'Procesando documentos...';
+      btn.disabled = true; btn.textContent = 'Procesando...';
       
       try {
-        // 1. Crear usuario en Auth
-        const { data: authData, error: authError } = await dbClient.auth.signUp({
-          email: email,
-          password: password,
+        const { error } = await dbClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { tipo: 'abogado', nombre_completo: nombre, telefono, ciudad, inpre, especialidad }
+          }
         });
-        if (authError) throw authError;
-        
-        const userId = authData.user.id;
-        const file = fileInput.files[0];
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${userId}/carnet_inpre.${fileExt}`;
+        if (error) throw error;
 
-        // 2. Subir foto al Bucket "documentos_kyc"
-        const { error: uploadError } = await dbClient.storage
-          .from('documentos_kyc')
-          .upload(filePath, file);
-        if (uploadError) throw uploadError;
-
-        // 3. Insertar perfil en la tabla abogados
-        const { error: dbError } = await dbClient.from('abogados').insert({
-          auth_id: userId,
-          nombre_completo: nombre,
-          email: email,
-          telefono: telefono,
-          ciudad: ciudad,
-          inpreabogado: inpre,
-          especialidad: especialidad,
-          documento_colegiatura_url: filePath
-        });
-        if (dbError) throw dbError;
-        
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ ¡Documentos enviados!');
+        showToast('✅ Registro exitoso. Revisa tu email.');
       } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Error en el registro.', true);
+        showToast(err.message, true);
         btn.disabled = false; btn.textContent = '⚖ Crear cuenta y Enviar Documentos';
       }
     }
