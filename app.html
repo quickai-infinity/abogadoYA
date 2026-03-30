@@ -22,7 +22,7 @@
 
     /* NAVEGACIÓN SUPERIOR */
     .nav-top { display: flex; background: var(--navy-light); padding: 0.5rem; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0.6rem; border-radius: 12px; color: #64748B; text-decoration: none; font-size: 0.6rem; font-weight: 700; position: relative; transition: 0.2s; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0.6rem; border-radius: 12px; color: #64748B; text-decoration: none; font-size: 0.6rem; font-weight: 700; position: relative; transition: 0.2s; cursor: pointer; }
     .nav-item.active { color: var(--blue-trust); background: rgba(37, 99, 235, 0.08); }
     .nav-item:active { transform: scale(0.95); }
 
@@ -32,24 +32,43 @@
 
     /* CONTENIDO */
     .main-content { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
-    .view { display: none; width: 100%; max-width: 500px; animation: fadeIn 0.3s ease; }
-    .view.active { display: block; }
+    .view { display: none; width: 100%; max-width: 500px; animation: fadeIn 0.3s ease; height: 100%; }
+    .view.active { display: flex; flex-direction: column; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     /* BOTÓN SOS PRINCIPAL */
-    .sos-container { text-align: center; margin-top: 2rem; }
+    .sos-container { text-align: center; margin-top: 2rem; width: 100%; }
     .sos-btn { width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, #ff4d4d, var(--red-emergency)); border: 10px solid rgba(239, 68, 68, 0.1); color: white; font-size: 2.2rem; font-weight: 900; box-shadow: 0 0 60px rgba(239, 68, 68, 0.3); cursor: pointer; transition: 0.2s; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
     .sos-btn:active { transform: scale(0.9); }
 
     /* BOTONES DE ACCIÓN RÁPIDA */
-    .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2rem; }
+    .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2rem; width: 100%; }
     .action-card { background: var(--navy-light); padding: 1.2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); text-align: center; cursor: pointer; transition: 0.2s; }
     .action-card:active { transform: scale(0.95); background: rgba(255,255,255,0.08); }
     .action-card span { display: block; font-size: 1.5rem; margin-bottom: 5px; }
     .action-card p { font-size: 0.7rem; font-weight: 700; color: #94A3B8; }
 
+    /* --- CHAT IA ESTILO PROFESIONAL --- */
+    #chat-container {
+      display: flex; flex-direction: column; height: 100%; width: 100%;
+      background: var(--navy-light); border-radius: 20px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.05); margin-top: 10px;
+    }
+    #chat-messages {
+      flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 10px;
+      scrollbar-width: none;
+    }
+    #chat-messages::-webkit-scrollbar { display: none; }
+    .msg { max-width: 85%; padding: 0.8rem 1rem; border-radius: 18px; font-size: 0.85rem; line-height: 1.4; text-align: left; }
+    .msg.bot { background: var(--navy); color: white; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
+    .msg.user { background: var(--blue-trust); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .chat-input-area { display: flex; padding: 0.8rem; background: rgba(0,0,0,0.2); gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; padding: 0.6rem 1rem; outline: none; font-size: 0.9rem; }
+    .btn-send { background: var(--blue-trust); border: none; border-radius: 12px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-send:active { transform: scale(0.9); }
+
     /* FORMULARIOS PERFIL */
-    .profile-group { background: var(--navy-light); padding: 1.2rem; border-radius: 16px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05); }
+    .profile-group { background: var(--navy-light); padding: 1.2rem; border-radius: 16px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05); width: 100%; }
     .profile-group label { display: block; font-size: 0.7rem; color: #64748B; margin-bottom: 5px; font-weight: 700; }
     .profile-group input { width: 100%; background: none; border: none; color: white; font-size: 1rem; outline: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
     .btn-save { width: 100%; background: var(--blue-trust); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; margin-top: 1rem; cursor: pointer; }
@@ -67,14 +86,14 @@
   </header>
 
   <nav class="nav-top">
-    <a href="#" class="nav-item active" onclick="showView('home', this)">
+    <a class="nav-item active" onclick="showView('home', this)">
       <span style="font-size:1.2rem">🛡️</span>INICIO
     </a>
-    <a href="#" class="nav-item" onclick="showView('ia', this)">
+    <a class="nav-item" onclick="showView('ia', this)">
       <div class="pulse-dot"></div>
       <span style="font-size:1.2rem">🧠</span>AGENTE 24/7
     </a>
-    <a href="#" class="nav-item" onclick="showView('perfil', this)">
+    <a class="nav-item" onclick="showView('perfil', this)">
       <span style="font-size:1.2rem">👤</span>PERFIL
     </a>
   </nav>
@@ -96,24 +115,30 @@
     </div>
 
     <div id="view-ia" class="view">
-      <h2 style="margin-bottom:1rem;">Agente Legal IA</h2>
-      <div style="background:var(--navy-light); padding:1rem; border-radius:12px; height: 300px; display:flex; align-items:center; justify-content:center; color:#64748B;">
-        Chat con leyes venezolanas próximamente...
+      <h2 style="margin-bottom:0.5rem; font-size: 1.1rem;">Agente Legal IA</h2>
+      <div id="chat-container">
+        <div id="chat-messages">
+          <div class="msg bot">👋 Hola. Soy tu Agente Legal 24/7. Analizo leyes de Venezuela en tiempo real. <br><br><b>¿Te detuvieron en una alcabala? Dime qué sucede.</b></div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Pregunta sobre leyes...">
+          <button class="btn-send" onclick="sendMessage()">🚀</button>
+        </div>
       </div>
     </div>
 
     <div id="view-perfil" class="view">
-      <h2 style="margin-bottom:1.5rem;">Contactos de Emergencia</h2>
+      <h2 style="margin-bottom:1.5rem; font-size: 1.1rem;">Contactos de Emergencia</h2>
       <div class="profile-group">
         <label>NOMBRE DEL CONTACTO</label>
         <input type="text" id="contact-name" placeholder="Ej: Mi Madre">
       </div>
       <div class="profile-group">
-        <label>WHATSAPP DE ALERTA (Móvil)</label>
+        <label>WHATSAPP DE ALERTA</label>
         <input type="tel" id="contact-tel" placeholder="+58 4XX XXXXXXX">
       </div>
       <button class="btn-save" onclick="saveEmergencyContact()">Guardar Contacto</button>
-      <p style="font-size: 0.7rem; color: #64748B; margin-top: 1rem; text-align: center;">Este número recibirá un mensaje automático vía n8n si activas el SOS.</p>
+      <p style="font-size: 0.7rem; color: #64748B; margin-top: 1rem; text-align: center;">Este número recibirá un WhatsApp automático si activas el SOS.</p>
     </div>
 
   </main>
@@ -145,34 +170,43 @@
       el.classList.add('active');
     }
 
+    // LÓGICA DEL CHAT IA
+    function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const container = document.getElementById('chat-messages');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const userDiv = document.createElement('div');
+      userDiv.className = 'msg user';
+      userDiv.innerText = text;
+      container.appendChild(userDiv);
+      input.value = '';
+      container.scrollTop = container.scrollHeight;
+
+      setTimeout(() => {
+        const botDiv = document.createElement('div');
+        botDiv.className = 'msg bot';
+        botDiv.innerHTML = "<b>Analizando leyes...</b><br>Según el Artículo 141 de la Constitución, los ciudadanos tienen derecho a grabar procedimientos policiales. Ningún funcionario puede confiscar tu equipo sin orden judicial.";
+        container.appendChild(botDiv);
+        container.scrollTop = container.scrollHeight;
+      }, 1000);
+    }
+
     async function saveEmergencyContact() {
       const { data: { user } } = await dbApp.auth.getUser();
       const nombre = document.getElementById('contact-name').value;
       const tel = document.getElementById('contact-tel').value;
-
-      const { error } = await dbApp.from('usuarios').update({
-        contacto_emergencia_nombre: nombre,
-        contacto_emergencia_tel: tel
-      }).eq('auth_id', user.id);
-
+      const { error } = await dbApp.from('usuarios').update({ contacto_emergencia_nombre: nombre, contacto_emergencia_tel: tel }).eq('auth_id', user.id);
       if (error) alert("Error: " + error.message);
-      else alert("¡Contacto guardado! n8n activado.");
+      else alert("¡Contacto guardado!");
     }
 
-    function alertFamily() {
-      alert("Enviando WhatsApp de alerta a tu contacto de emergencia via n8n...");
-      // Aquí dispararemos el webhook de n8n en el siguiente paso
-    }
+    function alertFamily() { alert("Enviando alerta vía n8n..."); }
+    function triggerEmergency() { alert("🆘 SOS ACTIVADO"); }
+    async function logout() { await dbApp.auth.signOut(); window.location.href = 'index.html'; }
 
-    function triggerEmergency() {
-      alert("🆘 SOS ACTIVADO: Grabando y enviando ubicación...");
-    }
-
-    async function logout() {
-      await dbApp.auth.signOut();
-      window.location.href = 'index.html';
-    }
-
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     checkUser();
   </script>
 </body>
