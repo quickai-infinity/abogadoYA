@@ -763,25 +763,66 @@
       background: var(--navy-light); width: 100%; max-width: 400px; padding: 2.5rem;
       border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
     }
+    /* AJUSTE DE LOGO MÁS PEQUEÑO */
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.logo-text {
+  font-size: 1rem; /* Antes era 1.25rem */
+  letter-spacing: -0.3px;
+}
+
+/* BOTONES DE CABECERA COMPACTOS */
+.btn-entrar-header {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 0.4rem 0.9rem; /* Reducido para ser más discreto */
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.75rem; /* Letra más pequeña y profesional */
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-cta-header {
+  background: var(--blue-trust);
+  color: white;
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+/* EFECTO DE PULSACIÓN EN CABECERA */
+.btn-entrar-header:active, .nav-cta-header:active {
+  transform: scale(0.94);
+}
   </style>
 </head>
 <body>
 
   <nav>
-    <a href="#" class="logo">
-      <div class="logo-icon">⚖</div>
-      <div class="logo-text">Abogado<span>YA</span></div>
-    </a>
-    <div style="display: flex; gap: 10px;">
-      <button onclick="showLogin()" style="background: transparent; border: 1px solid var(--blue-trust); color: white; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">Entrar</button>
-      <a href="#registro" class="nav-cta">Registrarme</a>
-    </div>
-  </nav>
+  <a href="#" class="logo">
+    <div class="logo-icon">⚖</div>
+    <div class="logo-text">Abogado<span>YA</span></div>
+  </a>
+  <div style="display: flex; gap: 8px; align-items: center;">
+    <button onclick="showLogin()" class="btn-entrar-header">Entrar</button>
+    <a href="#registro" class="nav-cta-header">Registrarme</a>
+  </div>
+</nav>
 
   <section class="hero">
     <div class="hero-badge">
       <span></span>
-      Próximamente en Venezuela
+       Venezuela
     </div>
 
     <h1>Un abogado en tu bolsillo <span class="highlight">cuando más lo necesitas</span></h1>
