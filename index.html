@@ -1108,12 +1108,12 @@ async function submitCiudadano() {
       const telefono = document.getElementById('c-telefono').value.trim();
       const ciudad = document.getElementById('c-ciudad').value;
       
-      if (!nombre || !email || !password || !telefono || !ciudad) { 
-        showToast('Completa todos los campos', true); return; 
+      if (!nombre || !email || !password || !telefono) { 
+        showToast('Completa los campos obligatorios', true); return; 
       }
       
       const btn = document.getElementById('btn-ciudadano');
-      btn.disabled = true; btn.textContent = 'Procesando...';
+      btn.disabled = true; btn.textContent = 'Creando cuenta...';
       
       try {
         const { error } = await dbClient.auth.signUp({
@@ -1127,7 +1127,7 @@ async function submitCiudadano() {
 
         document.getElementById('form-ciudadano').style.display = 'none';
         document.getElementById('success-ciudadano').style.display = 'block';
-        showToast('✅ Registro exitoso. Revisa tu email.');
+        showToast('✅ Registro exitoso. Confirma tu correo.');
       } catch (err) {
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '🛡️ Crear mi Cuenta';
@@ -1143,8 +1143,8 @@ async function submitCiudadano() {
       const telefono = document.getElementById('a-telefono').value.trim();
       const ciudad = document.getElementById('a-ciudad').value;
       
-      if (!nombre || !email || !password || !telefono || !inpre || !ciudad) { 
-        showToast('Completa todos los campos', true); return; 
+      if (!nombre || !email || !password || !inpre) { 
+        showToast('Completa los campos obligatorios', true); return; 
       }
       
       const btn = document.getElementById('btn-abogado');
@@ -1162,10 +1162,10 @@ async function submitCiudadano() {
 
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
-        showToast('✅ Registro exitoso. Revisa tu email.');
+        showToast('✅ Registro exitoso. Confirma tu correo.');
       } catch (err) {
         showToast(err.message, true);
-        btn.disabled = false; btn.textContent = '⚖ Crear cuenta y Enviar Documentos';
+        btn.disabled = false; btn.textContent = '⚖ Crear cuenta';
       }
     }
 
