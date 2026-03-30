@@ -1208,6 +1208,32 @@ async function submitCiudadano() {
       el.style.transition = 'all 0.6s ease';
       observer.observe(el);
     });
+    // Función para mostrar el cuadro de entrada
+    function showLogin() {
+      const email = prompt("Introduce tu correo electrónico:");
+      if (!email) return;
+      const password = prompt("Introduce tu contraseña:");
+      if (!password) return;
+      login(email, password);
+    }
+
+    // Función real de inicio de sesión
+    async function login(email, password) {
+      showToast('Iniciando sesión...', false);
+      
+      const { data, error } = await dbClient.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (error) {
+        showToast('Error: ' + error.message, true);
+      } else {
+        showToast('¡Bienvenido de nuevo!', false);
+        // REDIRECCIÓN A LA APP
+        window.location.href = 'app.html';
+      }
+    }
   </script>
 </body>
 </html>
