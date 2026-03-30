@@ -1208,32 +1208,62 @@ async function submitCiudadano() {
       el.style.transition = 'all 0.6s ease';
       observer.observe(el);
     });
-    // Función para mostrar el cuadro de entrada
-    function showLogin() {
-      const email = prompt("Introduce tu correo electrónico:");
-      if (!email) return;
-      const password = prompt("Introduce tu contraseña:");
-      if (!password) return;
-      login(email, password);
-    }
+    const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
+    
+    // Usamos dbApp para que no choque con nada
+    let dbApp;
 
-    // Función real de inicio de sesión
-    async function login(email, password) {
-      showToast('Iniciando sesión...', false);
+    async function checkUser() {
+      const loader = document.getElementById('loader');
       
-      const { data, error } = await dbClient.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
+      try {
+        // 1. Inicializar cliente
+        dbApp = window.supabase.createClient(API_URL, API_KEY);
 
-      if (error) {
-        showToast('Error: ' + error.message, true);
-      } else {
-        showToast('¡Bienvenido de nuevo!', false);
-        // REDIRECCIÓN A LA APP
-        window.location.href = 'app.html';
+        // 2. Obtener sesión actual
+        const { data: { user }, error: authError } = await dbApp.auth.getUser();
+        
+        if (authError || !user) {
+          console.error("No hay sesión activa:", authError);
+          window.location.href = 'index.html';
+          return;
+        }
+
+        // 3. Identificar tipo de usuario (Primero buscamos en abogados)
+        const { data: abogado, error: abogadoError } = await dbApp
+          .from('abogados')
+          .select('*')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+
+        // 4. Quitar pantalla de carga
+        loader.style.display = 'none';
+
+        if (abogado) {
+          document.getElementById('panel-abogado').style.display = 'block';
+          document.getElementById('abogado-status').innerText = `Estado: ${abogado.estado || 'Pendiente'}`;
+        } else {
+          document.getElementById('panel-ciudadano').style.display = 'block';
+          const nombre = user.user_metadata.nombre_completo || 'Usuario';
+          document.getElementById('user-name').innerText = `Hola, ${nombre}`;
+        }
+
+      } catch (err) {
+        console.error("Error crítico en la App:", err);
+        loader.innerHTML = `<div style="color:red; padding:20px;">Error al cargar datos.<br>${err.message}</div>`;
       }
     }
+
+    async function logout() {
+      if (dbApp) {
+        await dbApp.auth.signOut();
+        window.location.href = 'index.html';
+      }
+    }
+
+    // Iniciar el chequeo al cargar la página
+    window.onload = checkUser;
   </script>
 </body>
 </html>
