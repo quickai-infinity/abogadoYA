@@ -221,46 +221,39 @@
     let isRecording = false;
     let currentRoomName = '';
 
-    // --- EL MOTOR ROBUSTO DE EMERGENCIA ---
+    // --- FUNCIÓN DE EMERGENCIA CORREGIDA ---
     async function triggerEmergency() {
       const btn = document.querySelector('.sos-btn');
       btn.innerText = '⏳'; 
       btn.style.pointerEvents = 'none';
 
       const { data: { user } } = await dbApp.auth.getUser();
-      currentRoomName = `AbogadoYA-${user.id}-${Date.now()}`; // Nombre único de sala
+      currentRoomName = `AbogadoYA-${user.id}-${Date.now()}`;
       
       try {
-        // 1. Avisar a Supabase (El Timbre al Abogado)
-        const { error } = await dbApp.from('emergencias_activas').insert([
+        // 1. Avisar a Supabase
+        await dbApp.from('emergencias_activas').insert([
           { ciudadano_id: user.id, estado: 'buscando', sala_webrtc_url: currentRoomName }
         ]);
-        if (error) throw error;
 
         btn.innerText = '🔴 LIVE'; 
         btn.style.animation = 'pulse-btn 1s infinite';
 
-        // 2. Iniciar Grabación Local Oculta (Plan Gratis)
-        await startHiddenRecording();
-
-        // 3. Iniciar Videollamada (Jitsi)
+        // 2. INICIAR PRIMERO LA VIDEOLLAMADA (Para evitar bloqueo de cámara)
         startJitsiCall(currentRoomName);
 
-        // 4. Activar el Gatillo de Pánico (Apagado de pantalla)
+        // 3. Activar el Gatillo de Pánico
         document.addEventListener('visibilitychange', panicTrigger);
         
       } catch (err) {
-        alert("Error crítico: " + err.message);
+        alert("Error: " + err.message);
         btn.innerText = 'SOS';
         btn.style.pointerEvents = 'auto';
       }
     }
 
-    // --- FUNCIÓN 1: INICIAR JITSI CON VERIFICACIÓN ---
     function startJitsiCall(roomName) {
-      // Verificamos si la librería ya existe en el navegador
       if (typeof JitsiMeetExternalAPI === 'undefined') {
-        console.log("Reintentando conexión con Jitsi en 1 segundo...");
         setTimeout(() => startJitsiCall(roomName), 1000);
         return;
       }
@@ -268,22 +261,29 @@
       const container = document.getElementById('jitsi-container');
       container.style.display = 'block';
 
-      const domain = 'meet.jit.si';
       const options = {
         roomName: roomName,
         width: '100%',
-        height: '100%',
+        height: 400,
         parentNode: container,
         configOverwrite: { 
           startWithAudioMuted: false, 
           startWithVideoMuted: false,
-          disableDeepLinking: true 
+          prejoinPageEnabled: false, // SALTA LA VENTANA DE "ENTRAR"
+          disableThirdPartyRequests: true
         },
         interfaceConfigOverwrite: { 
-          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'tileview'] 
+          MOBILE_APP_PROMO: false, // QUITA LA PUBLICIDAD QUE TE SALIÓ
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup'] 
         }
       };
-      jitsiApi = new JitsiMeetExternalAPI(domain, options);
+      jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", options);
+
+      // CUANDO JITSI ESTÉ LISTO, INICIAMOS LA GRABACIÓN LOCAL
+      jitsiApi.addEventListener('videoConferenceJoined', () => {
+         console.log("Conectado a Jitsi, iniciando respaldo...");
+         startHiddenRecording(); 
+      });
     }
 
     // --- FUNCIÓN 2: GRABADORA OCULTA ---

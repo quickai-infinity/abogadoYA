@@ -277,32 +277,35 @@
 
     // Aceptar la emergencia y pasar a WebRTC
    async function acceptEmergency() {
-      // 1. Marcar como atendida en Supabase
       const { error } = await dbApp.from('emergencias_activas')
         .update({ estado: 'atendida', abogado_id: (await dbApp.auth.getUser()).data.user.id })
         .eq('id', currentEmergencyId);
 
-      if (error) return alert("Error al tomar emergencia: " + error.message);
+      if (error) return alert("Error: " + error.message);
 
-      // 2. Obtener el nombre de la sala que generó el ciudadano
       const { data } = await dbApp.from('emergencias_activas')
         .select('sala_webrtc_url')
         .eq('id', currentEmergencyId)
         .single();
 
-      // 3. Ir a la vista de sala y conectar video
       showView('sala', document.querySelectorAll('.nav-item')[1]);
       
-      // Creamos el contenedor de video si no existe (estilo Jitsi)
       const salaView = document.getElementById('view-sala');
-      salaView.innerHTML = `<div id="jitsi-abogado" style="width:100%; height:100%;"></div>`;
+      // Limpiamos y preparamos el contenedor con altura fija para móviles
+      salaView.innerHTML = `
+        <h2 style="font-size:1rem; padding:10px;">🔴 ASISTENCIA EN VIVO</h2>
+        <div id="jitsi-abogado" style="width:100%; height:500px; background:#000;"></div>
+      `;
       
-      // Iniciar Jitsi para el Abogado
-      new JitsiMeetExternalAPI("meet.jit.si", {
+      const options = {
         roomName: data.sala_webrtc_url,
         parentNode: document.getElementById('jitsi-abogado'),
-        width: '100%', height: '100%'
-      });
+        width: '100%',
+        height: '100%',
+        configOverwrite: { prejoinPageEnabled: false },
+        interfaceConfigOverwrite: { MOBILE_APP_PROMO: false }
+      };
+      new JitsiMeetExternalAPI("meet.jit.si", options);
     }
     // Controles de Videollamada
     function toggleMute(btn) {
