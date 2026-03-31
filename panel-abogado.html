@@ -277,44 +277,75 @@
     }
 
     // Aceptar la emergencia y pasar a WebRTC
-   let callFrame = null;
+  let callFrame = null;
 
-    async function acceptEmergency() {
-      const { data: { user } } = await dbApp.auth.getUser();
+async function acceptEmergency() {
+  // 1. ESCUDO ANTICRASHEO: Si fue una simulación, no busca en la base de datos
+  if (!currentEmergencyId) {
+    alert("Esto es una simulación visual. No hay sala real conectada en la base de datos.");
+    showView('sala', document.querySelectorAll('.nav-item')[1]);
+    return;
+  }
 
-      // 1. Tomamos la emergencia en Supabase
-      const { error } = await dbApp.from('emergencias_activas')
-        .update({ estado: 'atendida', abogado_id: user.id })
-        .eq('id', currentEmergencyId);
+  try {
+    const { data: { user } } = await dbApp.auth.getUser();
 
-      if (error) return alert("Error al conectar: " + error.message);
+    // 2. Actualizamos el estado en Supabase
+    const { error: updateError } = await dbApp.from('emergencias_activas')
+      .update({ estado: 'atendida', abogado_id: user.id })
+      .eq('id', currentEmergencyId);
 
-      // 2. Buscamos la URL generada
-      const { data } = await dbApp.from('emergencias_activas')
-        .select('sala_webrtc_url')
-        .eq('id', currentEmergencyId)
-        .single();
+    if (updateError) throw new Error("Error al asignar la emergencia: " + updateError.message);
 
-      // 3. Cambiamos la vista
-      showView('sala', document.querySelectorAll('.nav-item')[1]);
-      
-      const salaView = document.getElementById('view-sala');
-      salaView.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--navy-light);">
-          <h2 style="font-size:1.1rem; margin:0; color:var(--red-emergency);">🔴 ASISTENCIA EN VIVO</h2>
-          <button onclick="endCall()" style="background:var(--red-emergency); color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">Finalizar Llamada</button>
-        </div>
-        <div id="daily-abogado" style="width:100%; height:calc(100vh - 150px); background:#000;"></div>
-      `;
-      
-      // 4. Conectamos el video
-      callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
-        showLeaveButton: false, // Ocultamos el botón por defecto para usar el nuestro
-        iframeStyle: { width: '100%', height: '100%', border: '0' }
-      });
+    // 3. Buscamos la URL de la sala
+    const { data, error: selectError } = await dbApp.from('emergencias_activas')
+      .select('sala_webrtc_url')
+      .eq('id', currentEmergencyId)
+      .single();
 
-      callFrame.join({ url: data.sala_webrtc_url });
+    if (selectError || !data || !data.sala_webrtc_url) {
+      throw new Error("No se encontró la URL de videollamada para este caso.");
     }
+
+    // 4. Inyectamos la interfaz de la sala en el DOM
+    showView('sala', document.querySelectorAll('.nav-item')[1]);
+    
+    const salaView = document.getElementById('view-sala');
+    salaView.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--navy-light);">
+        <h2 style="font-size:1.1rem; margin:0; color:var(--red-emergency);">🔴 ASISTENCIA EN VIVO</h2>
+        <button onclick="endCall()" style="background:var(--red-emergency); color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">Finalizar Llamada</button>
+      </div>
+      <div id="daily-abogado" style="width:100%; height:calc(100vh - 150px); background:#000;"></div>
+    `;
+    
+    // 5. Instanciamos Daily dentro del contenedor creado
+    callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
+      showLeaveButton: false,
+      iframeStyle: { width: '100%', height: '100%', border: '0' }
+    });
+
+    await callFrame.join({ url: data.sala_webrtc_url });
+
+  } catch (error) {
+    console.error("Error en acceptEmergency:", error);
+    alert(error.message);
+  }
+}
+
+// 6. FUNCIÓN ÚNICA DE FINALIZACIÓN (Elimina cualquier otra que se llame igual)
+function endCall() {
+  if (confirm("¿Estás seguro de finalizar la asistencia legal?")) {
+    if (callFrame) {
+      callFrame.leave();
+      callFrame.destroy(); // Esto es vital: apaga la cámara y destruye el iframe
+      callFrame = null;
+    }
+    showView('guardia', document.querySelectorAll('.nav-item')[0]);
+    document.getElementById('view-sala').innerHTML = ''; // Limpiamos el DOM
+    currentEmergencyId = null; // Reseteamos la variable para el siguiente caso
+  }
+}
 
     function endCall() {
       if(confirm("¿Estás seguro de finalizar la asistencia legal?")) {
