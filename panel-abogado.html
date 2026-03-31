@@ -66,7 +66,7 @@
 
   <header>
     <div class="logo-small">Abogado<span>YA</span> <span style="font-size: 0.6rem; color: #94A3B8; font-weight: normal;">| PANEL</span></div>
-    <button class="btn-exit" onclick="window.locati<button class="btn-exit" onclick="logout()">Salir</button>on.href='index.html'">Salir</button>
+    <button class="btn-exit" onclick="logout()">Salir</button>
   </header>
 
   <nav class="nav-top">
@@ -165,7 +165,30 @@
 
   </main>
 
+ <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
+    // ==========================================
+    // 1. INICIALIZAR SUPABASE
+    // ==========================================
+    // ==========================================
+    // 1. INICIALIZAR SUPABASE
+    // ==========================================
+    const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
+    const dbApp = window.supabase.createClient(API_URL, API_KEY);
+
+    // ==========================================
+    // 2. FUNCIÓN PARA CERRAR SESIÓN
+    // ==========================================
+    async function logout() {
+      await dbApp.auth.signOut(); // Destruye la sesión en la base de datos
+      window.location.href = 'index.html'; // Redirige a la landing page
+    }
+
+    // ==========================================
+    // LÓGICA DE INTERFAZ (Tu código original)
+    // ==========================================
+    
     // Lógica de Navegación
     function showView(viewId, el) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
