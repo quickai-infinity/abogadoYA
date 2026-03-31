@@ -1313,12 +1313,19 @@
       const btn = document.querySelector('#login-modal .form-submit');
       btn.innerText = 'Verificando...';
       
-      const { error } = await dbClient.auth.signInWithPassword({ email, password });
+      const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
+      
       if (error) {
         alert("Error: " + error.message);
         btn.innerText = 'Entrar ahora';
       } else {
-        window.location.href = 'app.html';
+        // Aquí leemos qué tipo de usuario es y decidimos a dónde enviarlo
+        const userType = data.user.user_metadata?.tipo;
+        if (userType === 'abogado') {
+          window.location.href = 'panel-abogado.html';
+        } else {
+          window.location.href = 'app.html';
+        }
       }
     }
   </script>
