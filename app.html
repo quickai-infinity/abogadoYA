@@ -54,8 +54,20 @@
     .profile-group label { display: block; font-size: 0.7rem; color: #64748B; margin-bottom: 5px; font-weight: 700; }
     .profile-group input { width: 100%; background: none; border: none; color: white; font-size: 1rem; outline: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
     .btn-save { width: 100%; background: var(--blue-trust); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; cursor: pointer; }
-
     #loader { position: fixed; inset: 0; background: var(--navy); display: flex; align-items: center; justify-content: center; z-index: 3000; font-weight: 800; }
+    /* ANIMACIÓN PARA EL MICRÓFONO ACTIVADO */
+    @keyframes pulse-red {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .mic-active {
+      background-color: var(--red-emergency) !important;
+      border-color: white !important;
+      animation: pulse-red 1.2s infinite !important;
+      color: white !important;
+    }
   </style>
 </head>
 <body>
