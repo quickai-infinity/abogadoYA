@@ -215,19 +215,29 @@
       container.appendChild(botDiv);
       container.scrollTop = container.scrollHeight;
 
-      try {
-        // INTENTO ONLINE: Llama a tu servidor blindado en Supabase (donde está la llave real de OpenAI)
+try {
+        // INTENTO ONLINE: Llama a tu servidor blindado en Supabase
         const { data, error } = await dbApp.functions.invoke('agente-ia', {
           body: { mensajeUsuario: text }
         });
 
-        if (error) throw new Error("Falla de red"); 
+        // RADIOGRAFÍA TÉCNICA: Esto imprimirá la verdad oculta en tu consola
+        console.log("☁️ Respuesta de la nube:", data);
+        if (error) console.error("❌ Error de red:", error);
+
+        // Validaciones estrictas
+        if (error) throw error;
+        if (data && data.error) throw new Error(data.error); // Falla si OpenAI rechaza la llave
+        if (!data || !data.choices) throw new Error("La IA no devolvió el formato esperado");
         
+        // Respuesta Online Exitosa
         botDiv.innerHTML = data.choices[0].message.content.replace(/\n/g, '<br>');
         container.scrollTop = container.scrollHeight;
 
-      } catch (error) {
-        // INTENTO OFFLINE: Si no hay megas, busca en la lista de arriba
+      } catch (err) {
+        // INTENTO OFFLINE: Si falla, primero nos dice por qué
+        console.error("⚠️ MOTIVO DEL FALLO AL CONECTAR:", err);
+        
         let respuestaEncontrada = null;
         for (let item of LEYES_OFFLINE) {
           if (item.palabrasClave.some(palabra => text.includes(palabra))) {
@@ -246,7 +256,6 @@
         botDiv.style.borderLeft = "4px solid #F59E0B"; 
         container.scrollTop = container.scrollHeight;
       }
-    }
 
     async function saveEmergencyContact() {
       const { data: { user } } = await dbApp.auth.getUser();
