@@ -204,8 +204,7 @@
       alert("¡Contacto guardado!");
     }
 
-    // --- MOTOR DE EMERGENCIA (DAILY + GRABACIÓN) ---
-    const DAILY_API_KEY = 'TU_API_KEY_AQUI'; // Asegúrate de colocar tu API Key completa aquí
+    const DAILY_API_KEY = 'TU_API_KEY_AQUI'; 
 
 async function triggerEmergency() {
   const btn = document.querySelector('.sos-btn');
@@ -213,37 +212,46 @@ async function triggerEmergency() {
   try {
     const { data: { user } } = await dbApp.auth.getUser();
     
-    // 1. CREACIÓN DE LA SALA CON GRABACIÓN EN LA NUBE HABILITADA
-    const resp = await fetch('https://api.daily.co/v1/rooms', {
+    // 1. CREAR LA SALA CON PERMISO DE GRABACIÓN
+    const roomResp = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
-      headers: { 
-        'Authorization': `Bearer 2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a`, 
-        'Content-Type': 'application/json' 
-      },
-      // AQUÍ SE AÑADE LA INSTRUCCIÓN:
-      body: JSON.stringify({
-        properties: {
-          enable_recording: "cloud"
-        }
+      headers: { 'Authorization': `Bearer 2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ properties: { enable_recording: "cloud" } })
+    });
+    const room = await roomResp.json();
+
+    // 2. CREAR LA LLAVE MAESTRA (TOKEN) PARA AUTO-GRABAR
+    const tokenResp = await fetch('https://api.daily.co/v1/meeting-tokens', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer 2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        properties: { 
+          room_name: room.name,
+          is_owner: true, // Le da autoridad al ciudadano
+          start_cloud_recording: true // Inicia la grabación automáticamente al entrar
+        } 
       })
     });
+    const tokenData = await tokenResp.json();
     
-    const room = await resp.json();
+    // 3. GUARDAR EN SUPABASE
     await dbApp.from('emergencias_activas').insert([{ ciudadano_id: user.id, sala_webrtc_url: room.url, estado: 'buscando' }]);
     
     btn.innerText = '🔴 LIVE';
     document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
     
+    // 4. ENTRAR A LA SALA USANDO LA LLAVE MAESTRA
     const frame = window.DailyIframe.createFrame({ appearance: { layout: 'fullscreen' } });
-    await frame.join({ url: room.url });
-    
-    // 2. INICIO AUTOMÁTICO DE LA GRABACIÓN EN DAILY
-    frame.startRecording(); 
+    await frame.join({ 
+      url: room.url,
+      token: tokenData.token // Entramos con el token, la grabación arranca sola
+    });
     
     startHiddenRecording();
     document.addEventListener('visibilitychange', panicTrigger);
     
   } catch (e) { 
+    console.error(e);
     alert(e.message); 
     btn.innerText = 'SOS'; 
   }
