@@ -276,20 +276,34 @@
     }
 
     // Aceptar la emergencia y pasar a WebRTC
-    function acceptEmergency() {
-      // 1. Aquí se actualizaría la base de datos: 
-      // dbApp.from('emergencias').update({ estado: 'atendida', abogado_id: myId }).eq('id', alertId)
-      
-      // 2. Transición a la vista de sala
-      document.getElementById('incoming-alert').style.display = 'none';
-      document.getElementById('radar-visual').style.display = 'flex';
-      
+   async function acceptEmergency() {
+      // 1. Marcar como atendida en Supabase
+      const { error } = await dbApp.from('emergencias_activas')
+        .update({ estado: 'atendida', abogado_id: (await dbApp.auth.getUser()).data.user.id })
+        .eq('id', currentEmergencyId);
+
+      if (error) return alert("Error al tomar emergencia: " + error.message);
+
+      // 2. Obtener el nombre de la sala que generó el ciudadano
+      const { data } = await dbApp.from('emergencias_activas')
+        .select('sala_webrtc_url')
+        .eq('id', currentEmergencyId)
+        .single();
+
+      // 3. Ir a la vista de sala y conectar video
       showView('sala', document.querySelectorAll('.nav-item')[1]);
       
-      // 3. Aquí se inicializa el SDK de Videollamada (Ej. Agora/Daily)
-      console.log("Inicializando WebRTC Room...");
+      // Creamos el contenedor de video si no existe (estilo Jitsi)
+      const salaView = document.getElementById('view-sala');
+      salaView.innerHTML = `<div id="jitsi-abogado" style="width:100%; height:100%;"></div>`;
+      
+      // Iniciar Jitsi para el Abogado
+      new JitsiMeetExternalAPI("meet.jit.si", {
+        roomName: data.sala_webrtc_url,
+        parentNode: document.getElementById('jitsi-abogado'),
+        width: '100%', height: '100%'
+      });
     }
-
     // Controles de Videollamada
     function toggleMute(btn) {
       if(btn.textContent === '🎤') { btn.textContent = '🔇'; btn.style.background = 'rgba(239, 68, 68, 0.5)'; }

@@ -256,8 +256,15 @@
       }
     }
 
-    // --- FUNCIÓN 1: INICIAR JITSI ---
+    // --- FUNCIÓN 1: INICIAR JITSI CON VERIFICACIÓN ---
     function startJitsiCall(roomName) {
+      // Verificamos si la librería ya existe en el navegador
+      if (typeof JitsiMeetExternalAPI === 'undefined') {
+        console.log("Reintentando conexión con Jitsi en 1 segundo...");
+        setTimeout(() => startJitsiCall(roomName), 1000);
+        return;
+      }
+
       const container = document.getElementById('jitsi-container');
       container.style.display = 'block';
 
@@ -270,9 +277,11 @@
         configOverwrite: { 
           startWithAudioMuted: false, 
           startWithVideoMuted: false,
-          disableDeepLinking: true // Evita que pida descargar la app de Jitsi
+          disableDeepLinking: true 
         },
-        interfaceConfigOverwrite: { TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup'] }
+        interfaceConfigOverwrite: { 
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'tileview'] 
+        }
       };
       jitsiApi = new JitsiMeetExternalAPI(domain, options);
     }
