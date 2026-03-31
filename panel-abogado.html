@@ -61,7 +61,7 @@
 
     .hidden { display: none !important; }
   </style>
-  <script src="https://meet.jit.si/external_api.js"></script>
+  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 </head>
 <body>
 
@@ -277,39 +277,54 @@
     }
 
     // Aceptar la emergencia y pasar a WebRTC
-   async function acceptEmergency() {
+   let callFrame = null;
+
+    async function acceptEmergency() {
+      const { data: { user } } = await dbApp.auth.getUser();
+
+      // 1. Tomamos la emergencia en Supabase
       const { error } = await dbApp.from('emergencias_activas')
-        .update({ estado: 'atendida', abogado_id: (await dbApp.auth.getUser()).data.user.id })
+        .update({ estado: 'atendida', abogado_id: user.id })
         .eq('id', currentEmergencyId);
 
-      if (error) return alert("Error: " + error.message);
+      if (error) return alert("Error al conectar: " + error.message);
 
+      // 2. Buscamos la URL generada
       const { data } = await dbApp.from('emergencias_activas')
         .select('sala_webrtc_url')
         .eq('id', currentEmergencyId)
         .single();
 
+      // 3. Cambiamos la vista
       showView('sala', document.querySelectorAll('.nav-item')[1]);
       
       const salaView = document.getElementById('view-sala');
-      // Limpiamos y preparamos el contenedor con altura fija para móviles
       salaView.innerHTML = `
-        <h2 style="font-size:1rem; padding:10px;">🔴 ASISTENCIA EN VIVO</h2>
-        <div id="jitsi-abogado" style="width:100%; height:500px; background:#000;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--navy-light);">
+          <h2 style="font-size:1.1rem; margin:0; color:var(--red-emergency);">🔴 ASISTENCIA EN VIVO</h2>
+          <button onclick="endCall()" style="background:var(--red-emergency); color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">Finalizar Llamada</button>
+        </div>
+        <div id="daily-abogado" style="width:100%; height:calc(100vh - 150px); background:#000;"></div>
       `;
       
-    const options = {
-        roomName: data.sala_webrtc_url,
-        parentNode: document.getElementById('jitsi-abogado'),
-        width: '100%',
-        height: '100%',
-        configOverwrite: { 
-          prejoinPageEnabled: false,
-          disableDeepLinking: true // Forzamos web también en el iPhone
-        },
-        interfaceConfigOverwrite: { MOBILE_APP_PROMO: false }
-      };
-      new JitsiMeetExternalAPI("meet.jit.si", options);
+      // 4. Conectamos el video
+      callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
+        showLeaveButton: false, // Ocultamos el botón por defecto para usar el nuestro
+        iframeStyle: { width: '100%', height: '100%', border: '0' }
+      });
+
+      callFrame.join({ url: data.sala_webrtc_url });
+    }
+
+    function endCall() {
+      if(confirm("¿Estás seguro de finalizar la asistencia legal?")) {
+        if(callFrame) {
+          callFrame.leave();
+          callFrame.destroy(); // Destruimos el iframe para liberar la cámara
+        }
+        showView('guardia', document.querySelectorAll('.nav-item')[0]);
+        document.getElementById('view-sala').innerHTML = ''; // Limpiamos la pantalla
+      }
     }
     // Controles de Videollamada
     function toggleMute(btn) {

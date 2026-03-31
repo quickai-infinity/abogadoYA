@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <script src="https://meet.jit.si/external_api.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AbogadoYA — Dashboard</title>
@@ -76,7 +75,6 @@
     .btn-save { width: 100%; background: var(--blue-trust); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; margin-top: 1rem; cursor: pointer; }
 
     #loader { position: fixed; inset: 0; background: var(--navy); display: flex; align-items: center; justify-content: center; z-index: 3000; font-weight: 800; }
-    <script src="https://meet.jit.si/external_api.js"></script>
   </style>
 </head>
 <body>
@@ -214,50 +212,81 @@
 
     function alertFamily() { alert("Enviando alerta..."); }
     
-    // VARIABLES GLOBALES PARA EL MOTOR DE VIDEO
-    let jitsiApi = null;
+    // --- VARIABLES GLOBALES DEL MOTOR DAILY ---
+    const DAILY_API_KEY = 'PON_TU_API_KEY_AQUI'; // <--- PEGA TU API KEY AQUÍ
+    let callFrame = null;
     let localRecorder = null;
     let recordedChunks = [];
     let isRecording = false;
-    let currentRoomName = '';
 
-    // --- FUNCIÓN DE EMERGENCIA CORREGIDA ---
     async function triggerEmergency() {
       const btn = document.querySelector('.sos-btn');
       btn.innerText = '⏳'; 
       btn.style.pointerEvents = 'none';
 
-      const { data: { user } } = await dbApp.auth.getUser();
-      currentRoomName = `AbogadoYA-${user.id}-${Date.now()}`;
-      
       try {
-        // 1. Avisar a Supabase
-        await dbApp.from('emergencias_activas').insert([
-          { ciudadano_id: user.id, estado: 'buscando', sala_webrtc_url: currentRoomName }
+        const { data: { user } } = await dbApp.auth.getUser();
+
+        // 1. Crear una sala instantánea en Daily.co
+        const response = await fetch('https://api.daily.co/v1/rooms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${DAILY_API_KEY}`
+          },
+          body: JSON.stringify({
+            properties: { exp: Math.floor(Date.now() / 1000) + 3600 } // Expira en 1 hora
+          })
+        });
+        
+        if (!response.ok) throw new Error("Fallo al contactar el servidor de video");
+        const dailyRoom = await response.json();
+
+        // 2. Avisar a Supabase para que el panel del abogado suene
+        const { error } = await dbApp.from('emergencias_activas').insert([
+          { ciudadano_id: user.id, estado: 'buscando', sala_webrtc_url: dailyRoom.url, tipo_servicio: 'gratis' }
         ]);
+        if (error) throw error;
 
         btn.innerText = '🔴 LIVE'; 
         btn.style.animation = 'pulse-btn 1s infinite';
 
-        // 2. INICIAR PRIMERO LA VIDEOLLAMADA (Para evitar bloqueo de cámara)
-        startJitsiCall(currentRoomName);
-
-        // 3. Activar el Gatillo de Pánico
+        // 3. Activar Grabación Local Oculta y Gatillo de Pánico
+        await startHiddenRecording();
         document.addEventListener('visibilitychange', panicTrigger);
+
+        // 4. ABRIR EL VIDEO EN PANTALLA COMPLETA
+        startDailyCall(dailyRoom.url);
         
       } catch (err) {
-        alert("Error: " + err.message);
+        alert("Error crítico: " + err.message);
         btn.innerText = 'SOS';
         btn.style.pointerEvents = 'auto';
       }
     }
 
-    function startJitsiCall(roomName) {
-      if (typeof JitsiMeetExternalAPI === 'undefined') {
-        setTimeout(() => startJitsiCall(roomName), 1000);
-        return;
-      }
+    function startDailyCall(roomUrl) {
+      // Creamos una "cortina" negra que ocupa toda la pantalla del teléfono
+      const videoContainer = document.createElement('div');
+      videoContainer.id = 'daily-fullscreen';
+      videoContainer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:9999; background:#000;';
+      document.body.appendChild(videoContainer);
 
+      // Incrustamos Daily a pantalla completa
+      callFrame = window.DailyIframe.createFrame(videoContainer, {
+        showLeaveButton: true,
+        iframeStyle: { width: '100%', height: '100%', border: '0' }
+      });
+
+      callFrame.join({ url: roomUrl });
+
+      // Si el usuario presiona "Salir", forzamos la subida a Supabase
+      callFrame.on('left-meeting', () => {
+        document.getElementById('daily-fullscreen').remove();
+        alert("Asistencia finalizada. Guardando evidencia en la nube...");
+        panicTrigger(); // Esta es la función que ya tenías que sube el video
+      });
+    }
       const container = document.getElementById('jitsi-container');
       container.style.display = 'block';
 
