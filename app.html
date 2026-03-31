@@ -253,10 +253,36 @@
     function logout() { dbApp.auth.signOut().then(() => window.location.href = 'index.html'); }
     function startDictation() {
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!Recognition) return alert("Dictado no soportado");
+      if (!Recognition) return alert("Tu navegador no soporta dictado por voz.");
+      
       const rec = new Recognition();
       rec.lang = 'es-VE';
-      rec.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendMessage(); };
+      const micBtn = document.getElementById('btn-mic');
+
+      // CUANDO EMPIEZA A ESCUCHAR
+      rec.onstart = () => {
+        micBtn.classList.add('mic-active'); // Se pone rojo y palpita
+        document.getElementById('chat-input').placeholder = "Escuchando tu caso...";
+      };
+
+      // CUANDO RECIBE EL TEXTO
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        document.getElementById('chat-input').value = transcript;
+        sendMessage(); // Lo envía automáticamente
+      };
+
+      // CUANDO TERMINA (POR ERROR O ÉXITO)
+      rec.onend = () => {
+        micBtn.classList.remove('mic-active'); // Vuelve a la normalidad
+        document.getElementById('chat-input').placeholder = "Dime qué sucede...";
+      };
+
+      rec.onerror = (e) => {
+        console.error("Error de voz:", e.error);
+        micBtn.classList.remove('mic-active');
+      };
+
       rec.start();
     }
 
