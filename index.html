@@ -1180,14 +1180,20 @@
     }
 
     async function login(email, password) {
-      showToast('Entrando...', false);
-      const { error } = await dbClient.auth.signInWithPassword({ email, password });
-      if (error) {
-        showToast(error.message, true);
-      } else {
-        window.location.href = 'app.html';
-      }
+  showToast('Entrando...', false);
+  const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    showToast(error.message, true);
+  } else {
+    // Redirección condicional basada en el tipo de usuario
+    const userType = data.user.user_metadata?.tipo;
+    if (userType === 'abogado') {
+      window.location.href = 'panel-abogado.html';
+    } else {
+      window.location.href = 'app.html';
     }
+  }
+}
 
     function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
