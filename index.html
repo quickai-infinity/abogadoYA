@@ -1272,6 +1272,7 @@
           .upload(filePath, file);
         if (uploadError) throw uploadError;
 
+        // ... (código previo de submitAbogado)
         await dbClient
           .from('abogados')
           .update({ documento_colegiatura_url: filePath })
@@ -1280,12 +1281,13 @@
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
         showToast('✅ Registro exitoso. Entrando...');
-        setTimeout(() => window.location.href = 'app.html', 1500);
+        // REDIRECCIÓN CORREGIDA:
+        setTimeout(() => window.location.href = 'panel-abogado.html', 1500);
       } catch (err) {
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '⚖ Crear cuenta';
       }
-    }
+}
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
