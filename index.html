@@ -1148,11 +1148,17 @@
 
     // FUNCIÓN DE REDIRECCIÓN AUTOMÁTICA
     async function checkExistingSession() {
-      const { data: { session } } = await dbClient.auth.getSession();
-      if (session) {
-        window.location.href = 'app.html';
-      }
+  const { data: { session } } = await dbClient.auth.getSession();
+  if (session) {
+    // Leemos el tipo de usuario guardado en Supabase
+    const userType = session.user.user_metadata?.tipo;
+    if (userType === 'abogado') {
+      window.location.href = 'panel-abogado.html';
+    } else {
+      window.location.href = 'app.html';
     }
+  }
+}
     checkExistingSession();
 
     function showToast(msg, isError) {
