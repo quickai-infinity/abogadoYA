@@ -269,11 +269,11 @@
         configOverwrite: { 
           startWithAudioMuted: false, 
           startWithVideoMuted: false,
-          prejoinPageEnabled: false, // SALTA LA VENTANA DE "ENTRAR"
-          disableThirdPartyRequests: true
+          prejoinPageEnabled: false, 
+          disableDeepLinking: true // ESTA LÍNEA BLOQUEA LA DESCARGA DE LA APP
         },
         interfaceConfigOverwrite: { 
-          MOBILE_APP_PROMO: false, // QUITA LA PUBLICIDAD QUE TE SALIÓ
+          MOBILE_APP_PROMO: false, 
           TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup'] 
         }
       };
