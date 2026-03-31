@@ -203,7 +203,35 @@
     }
 
     function alertFamily() { alert("Enviando alerta..."); }
-    function triggerEmergency() { alert("🆘 SOS ACTIVADO"); }
+    
+    // --- NUEVA FUNCIÓN DE EMERGENCIA ---
+    async function triggerEmergency() {
+      const btn = document.querySelector('.sos-btn');
+      btn.innerText = '⏳'; // Cambiamos a icono de espera
+      btn.style.pointerEvents = 'none';
+
+      const { data: { user } } = await dbApp.auth.getUser();
+      
+      try {
+        // Insertamos la alerta en Supabase
+        const { error } = await dbApp.from('emergencias_activas').insert([
+          { ciudadano_id: user.id, estado: 'buscando' }
+        ]);
+
+        if (error) throw error;
+
+        // Si sale bien, mostramos el radar
+        btn.innerText = '📡'; 
+        alert("🚨 Alerta enviada a los abogados de guardia.");
+        
+      } catch (err) {
+        alert("Error: No se pudo emitir la alerta. " + err.message);
+        btn.innerText = 'SOS';
+        btn.style.pointerEvents = 'auto';
+      }
+    }
+    // ------------------------------------
+
     async function logout() { await dbApp.auth.signOut(); window.location.href = 'index.html'; }
 
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });

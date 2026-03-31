@@ -198,7 +198,11 @@
     }
 
     // Lógica de Estado de Guardia
+    // Lógica de Estado de Guardia
     let isEnGuardia = false;
+    let emergenciasChannel = null; // Guardará la conexión en vivo
+    let currentEmergencyId = null; // Guardará el ID de la emergencia actual
+
     function toggleGuardia() {
       const toggle = document.getElementById('guardia-toggle');
       const title = document.getElementById('status-title');
@@ -216,8 +220,32 @@
         radarIcon.textContent = "📡";
         radarIcon.style.opacity = "1";
         
-        // Simulación: Supabase enviaría un evento aquí.
-        // dbApp.channel('emergencias').on('postgres_changes', ...).subscribe();
+        // CONEXIÓN EN TIEMPO REAL CON SUPABASE
+        emergenciasChannel = dbApp.channel('alertas-globales')
+          .on(
+            'postgres_changes',
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'emergencias_activas', 
+              filter: "estado=eq.buscando" 
+            },
+            (payload) => {
+              console.log('🚨 ¡NUEVA EMERGENCIA RECIBIDA!', payload);
+              
+              // Guardamos el ID para poder aceptarla después
+              currentEmergencyId = payload.new.id;
+
+              // Mostramos la tarjeta de alerta en la pantalla
+              document.getElementById('radar-visual').style.display = 'none';
+              document.getElementById('incoming-alert').style.display = 'block';
+              
+              // Aquí podrías agregar un sonido de alarma:
+              // new Audio('tu-sonido.mp3').play();
+            }
+          )
+          .subscribe();
+
       } else {
         title.textContent = "Fuera de Servicio";
         title.style.color = "var(--white)";
@@ -226,6 +254,11 @@
         radarIcon.textContent = "💤";
         radarIcon.style.opacity = "0.5";
         document.getElementById('incoming-alert').style.display = 'none';
+        
+        // Desconectamos el canal si se sale de guardia
+        if (emergenciasChannel) {
+          dbApp.removeChannel(emergenciasChannel);
+        }
       }
     }
 
