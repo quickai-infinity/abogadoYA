@@ -104,7 +104,6 @@
 
   <main class="main-content">
     
-    <!-- HOME -->
     <div id="view-home" class="view active">
       <div class="sos-container">
         <h2 id="welcome-name" style="font-size:1.1rem; margin-bottom:0.3rem;">Hola...</h2>
@@ -124,7 +123,6 @@
       <div id="jitsi-container" style="display: none;"></div>
     </div>
 
-    <!-- IA -->
     <div id="view-ia" class="view">
       <h2 style="margin-bottom:0.6rem; font-size: 1rem;">🧠 Agente Legal IA</h2>
       <div id="chat-messages">
@@ -137,7 +135,6 @@
       </div>
     </div>
 
-    <!-- PERFIL -->
     <div id="view-perfil" class="view">
       <div class="profile-section">
         <div class="profile-header">
@@ -268,9 +265,6 @@
       );
     }
 
-    // ── WEBHOOK N8N (envía WhatsApp automáticamente) ──
-    // Se llama directamente en triggerEmergency, no necesita función separada
-
     // ── EMERGENCIA ──
     async function triggerEmergency() {
       // Verificar que tenga contacto de emergencia
@@ -282,6 +276,7 @@
 
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = '⏳<div class="sos-sub">CONECTANDO...</div>';
+      btn.style.pointerEvents = 'none'; // Evitar dobles clics
       
       try {
         const { data: { user } } = await dbApp.auth.getUser();
@@ -336,72 +331,7 @@
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // ── EMERGENCIA ──
-    async function triggerEmergency() {
-      // Verificar que tenga contacto de emergencia
-      if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
-        showToast('⚠️ Primero guarda un contacto de emergencia en Perfil', 'error');
-        showView('perfil', document.querySelectorAll('.nav-item')[2]);
-        return;
-      }
-
-      const btn = document.querySelector('.sos-btn');
-      btn.innerHTML = '⏳<div class="sos-sub">CONECTANDO...</div>';
-      
-      try {
-        const { data: { user } } = await dbApp.auth.getUser();
-        const DAILY_KEY = '2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a';
-        
-        // 1. Crear sala con grabación
-        const roomResp = await fetch('https://api.daily.co/v1/rooms', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            properties: { 
-              enable_recording: "cloud",
-              enable_chat: false,
-              start_audio_off: false,
-              start_video_off: false
-            } 
-          })
-        });
-        const room = await roomResp.json();
-        if (!room.url) throw new Error('No se pudo crear la sala');
-
-        // 2. Token con auto-grabación
-        const tokenResp = await fetch('https://api.daily.co/v1/meeting-tokens', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            properties: { 
-              room_name: room.name, 
-              is_owner: true, 
-              start_cloud_recording: true,
-              enable_recording: "cloud"
-            } 
-          })
-        });
-        const tokenData = await tokenResp.json();
-        
-        // 3. Guardar emergencia con ubicación en Supabase
-        const insertData = {
-          ciudadano_id: user.id,
-          sala_webrtc_url: room.url,
-          estado: 'buscando'
-        };
-        
-        let mapsLink = null;
-        if (userLocation) {
-          insertData.ubicacion_texto = 'Lat: ' + userLocation.lat.toFixed(5) + ', Lng: ' + userLocation.lng.toFixed(5);
-          insertData.ubicacion_lat = userLocation.lat;
-          insertData.ubicacion_lng = userLocation.lng;
-          mapsLink = 'https://maps.google.com/?q=' + userLocation.lat + ',' + userLocation.lng;
-          insertData.maps_link = mapsLink;
-        }
-        
-        await dbApp.from('emergencias_activas').insert([insertData]);
-        
-        // 4. ENVIAR WEBHOOK A N8N INMEDIATAMENTE (SIN AWAIT - SEGUNDO PLANO)
+        // 4. ENVIAR WEBHOOK A N8N (Disparar y olvidar, sin await)
         fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -412,48 +342,39 @@
             maps_link: mapsLink || 'Ubicación no disponible',
             timestamp: new Date().toISOString()
           })
-        }).then(() => console.log('✅ Webhook n8n disparado en segundo plano'))
-          .catch(e => console.log('⚠️ Error n8n (ignorado para no bloquear app):', e));
+        }).catch(e => console.log('Webhook error ignorado:', e));
         
-        // 5. Activar indicadores visuales
+        // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
         showToast('🔴 Emergencia activada');
         
-        // 6. ABRIR VIDEOLLAMADA (Arreglo para iOS)
-        const dailyUrl = room.url + '?t=' + tokenData.token;
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        // 6. ABRIR VIDEOLLAMADA EN IFRAME
+        const videoOverlay = document.createElement('div');
+        videoOverlay.id = 'video-overlay';
+        videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
+        videoOverlay.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(10,22,40,0.95); z-index:10;">
+            <span style="color:#EF4444; font-weight:800; font-size:0.85rem;">🔴 EN VIVO — AbogadoYA</span>
+            <span style="color:#22C55E; font-size:0.7rem; font-weight:600;">☁️ Grabando en Nube</span>
+          </div>
+          <div id="daily-user-frame" style="flex:1;"></div>
+          <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
+            <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer; box-shadow:0 0 20px rgba(239,68,68,0.4);">📞</button>
+          </div>
+        `;
+        document.body.appendChild(videoOverlay);
         
-        if (isIOS) {
-          // EN IPHONE: En lugar de intentar abrir una pestaña nueva (que se bloquea), 
-          // redirigimos la pestaña actual directo a la sala. Es 100% infalible.
-          window.location.href = dailyUrl;
-        } else {
-          // EN ANDROID/PC: Usamos el iframe integrado como antes
-          const videoOverlay = document.createElement('div');
-          videoOverlay.id = 'video-overlay';
-          videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
-          videoOverlay.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(10,22,40,0.95); z-index:10;">
-              <span style="color:#EF4444; font-weight:800; font-size:0.85rem;">🔴 EN VIVO — AbogadoYA</span>
-              <span style="color:#22C55E; font-size:0.7rem; font-weight:600;">☁️ Grabando</span>
-            </div>
-            <div id="daily-user-frame" style="flex:1;"></div>
-            <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
-              <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer; box-shadow:0 0 20px rgba(239,68,68,0.4);">📞</button>
-            </div>
-          `;
-          document.body.appendChild(videoOverlay);
-          
-          const frame = window.DailyIframe.createFrame(document.getElementById('daily-user-frame'), {
-            showLeaveButton: false,
-            iframeStyle: { width: '100%', height: '100%', border: '0' }
-          });
-          window._dailyFrame = frame;
-          await frame.join({ url: room.url, token: tokenData.token });
-        }
+        const frame = window.DailyIframe.createFrame(document.getElementById('daily-user-frame'), {
+          showLeaveButton: false,
+          iframeStyle: { width: '100%', height: '100%', border: '0' }
+        });
+        window._dailyFrame = frame;
         
-        // 7. Grabación local de respaldo (solo audio para no chocar cámaras)
+        // Entrar con el token dispara la grabación en la nube automáticamente
+        await frame.join({ url: room.url, token: tokenData.token });
+        
+        // 7. Grabación local de respaldo y Gatillo
         startHiddenRecording();
         document.addEventListener('visibilitychange', panicTrigger);
         
@@ -461,17 +382,7 @@
         console.error(e);
         showToast('Error: ' + e.message, 'error');
         btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
-      }
-    }
-        
-        // 7. Grabación local de respaldo
-        startHiddenRecording();
-        document.addEventListener('visibilitychange', panicTrigger);
-        
-      } catch (e) { 
-        console.error(e);
-        showToast('Error: ' + e.message, 'error');
-        btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
+        btn.style.pointerEvents = 'auto';
       }
     }
 
@@ -610,6 +521,7 @@
       // Resetear botón SOS
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
+      btn.style.pointerEvents = 'auto'; // Rehabilitar clics
       
       // Desactivar indicadores
       document.querySelectorAll('.action-card').forEach(c => c.classList.remove('active'));
