@@ -9,29 +9,25 @@
     :root {
       --navy: #0A1628; --navy-light: #121F36; --blue-trust: #2563EB;
       --red-emergency: #EF4444; --green-active: #22C55E; --white: #FFFFFF;
-      --gray-400: #94A3B8; --orange-alert: #F97316;
+      --gray-400: #94A3B8; --orange-alert: #F97316; --gold: #F59E0B;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: var(--navy); color: var(--white); font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-    /* HEADER */
     header { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); background: var(--navy); z-index: 10; }
     .logo-small { font-weight: 800; font-size: 1rem; }
-    .logo-small span { color: var(--gold, #F59E0B); } /* Dorado para diferenciar panel de abogado */
-    .btn-exit { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .logo-small span { color: var(--gold); }
+    .btn-exit { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
     
-    /* NAVEGACIÓN */
     .nav-top { display: flex; background: var(--navy-light); padding: 0.5rem; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0.6rem; border-radius: 12px; color: var(--gray-400); font-size: 0.6rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
-    .nav-item.active { color: var(--gold, #F59E0B); background: rgba(245, 158, 11, 0.1); }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0.6rem; border-radius: 12px; color: var(--gray-400); font-size: 0.6rem; font-weight: 700; cursor: pointer; transition: 0.2s; text-decoration: none; }
+    .nav-item.active { color: var(--gold); background: rgba(245, 158, 11, 0.1); }
 
-    /* CONTENIDO */
     .main-content { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
     .view { display: none; width: 100%; max-width: 500px; animation: fadeIn 0.3s ease; height: 100%; }
     .view.active { display: flex; flex-direction: column; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* TOGGLE GUARDIA */
     .status-card { background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 1.5rem; text-align: center; margin-bottom: 2rem; }
     .toggle-container { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; }
     .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
@@ -41,7 +37,6 @@
     input:checked + .slider { background-color: var(--green-active); box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
     input:checked + .slider:before { transform: translateX(26px); }
 
-    /* ALERTAS DE EMERGENCIA */
     .radar-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
     .radar-ring { width: 150px; height: 150px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; position: relative; }
     .radar-ring.active::before { content: ''; position: absolute; inset: -20px; border-radius: 50%; border: 1px solid var(--green-active); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; opacity: 0; }
@@ -51,15 +46,7 @@
     @keyframes slideUp { from { transform: translateY(50px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
     .btn-accept { background: var(--white); color: var(--red-emergency); border: none; padding: 1rem; width: 100%; border-radius: 12px; font-weight: 800; font-size: 1rem; margin-top: 1rem; cursor: pointer; }
 
-    /* SALA DE VIDEO WEBRTC */
     .video-room { position: relative; width: 100%; flex: 1; background: #000; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-    .video-citizen { width: 100%; height: 100%; object-fit: cover; background: #111; }
-    .video-self { position: absolute; top: 1rem; right: 1rem; width: 90px; height: 140px; background: #222; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); object-fit: cover; }
-    .video-controls { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 1rem; background: rgba(0,0,0,0.6); padding: 0.8rem 1.5rem; border-radius: 30px; backdrop-filter: blur(10px); }
-    .btn-control { width: 45px; height: 45px; border-radius: 50%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .btn-control.hangup { background: var(--red-emergency); }
-
-    .hidden { display: none !important; }
   </style>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 </head>
@@ -84,11 +71,11 @@
 
   <main class="main-content">
     
+    <!-- VISTA GUARDIA -->
     <div id="view-guardia" class="view active">
       <div class="status-card">
         <h2 style="font-size: 1.2rem;" id="status-title">Fuera de Servicio</h2>
         <p style="color: var(--gray-400); font-size: 0.8rem; margin-top: 5px;" id="status-desc">Activa tu guardia para recibir emergencias.</p>
-        
         <div class="toggle-container">
           <label class="switch">
             <input type="checkbox" id="guardia-toggle" onchange="toggleGuardia()">
@@ -108,14 +95,12 @@
               <p style="font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; color: rgba(255,255,255,0.8);">🚨 EMERGENCIA DETECTADA</p>
               <h3 style="font-size: 1.4rem; margin-top: 5px;">Ciudadano en Alcabala</h3>
             </div>
-            <span style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold;">00:15</span>
+            <span style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold;" id="alert-timer">00:15</span>
           </div>
-          
           <div style="margin-top: 1rem; font-size: 0.85rem; line-height: 1.5;">
-            <p>📍 <b>Ubicación:</b> Autopista Francisco Fajardo, Caracas.</p>
-            <p>⏱️ <b>Tiempo de espera:</b> 12 segundos.</p>
+            <p id="alert-location">📍 <b>Ubicación:</b> Obteniendo...</p>
+            <p id="alert-time">⏱️ <b>Tiempo de espera:</b> calculando...</p>
           </div>
-
           <button class="btn-accept" onclick="acceptEmergency()">📹 ACEPTAR Y CONECTAR</button>
         </div>
       </div>
@@ -123,39 +108,25 @@
       <button onclick="simulateIncomingAlert()" style="margin-top: auto; background: none; border: 1px dashed rgba(255,255,255,0.2); color: var(--gray-400); padding: 10px; border-radius: 8px; font-size: 0.7rem; cursor: pointer;">Simular Emergencia (Dev)</button>
     </div>
 
+    <!-- VISTA SALA -->
     <div id="view-sala" class="view">
-      <h2 style="font-size: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between;">
-        <span>🔴 En Vivo</span>
-        <span style="color: var(--green-active); font-size: 0.8rem;">Grabando en Nube</span>
-      </h2>
-      
-      <div class="video-room">
-        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #111; color: var(--gray-400); flex-direction: column;">
-          <span style="font-size: 2rem; margin-bottom: 10px;">👤</span>
-          <p style="font-size: 0.8rem;">Esperando video del ciudadano...</p>
-        </div>
-        
-        <div class="video-self" style="display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 0.6rem;">Tú</div>
-
-        <div class="video-controls">
-          <button class="btn-control" onclick="toggleMute(this)">🎤</button>
-          <button class="btn-control hangup" onclick="endCall()">☎️</button>
-          <button class="btn-control" onclick="toggleCam(this)">📷</button>
-        </div>
+      <div id="sala-placeholder" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--gray-400);">
+        <span style="font-size:3rem; margin-bottom:1rem;">📹</span>
+        <p style="font-size:0.9rem;">Acepta una emergencia para iniciar la sala.</p>
       </div>
+      <div id="sala-video-container" style="display:none; flex:1; flex-direction:column; width:100%;"></div>
     </div>
 
+    <!-- VISTA HISTORIAL -->
     <div id="view-historial" class="view">
       <h2 style="font-size: 1.1rem; margin-bottom: 1.5rem;">Historial de Asistencias</h2>
-      
       <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <p style="font-size: 0.8rem; font-weight: 700;">Caso #4092</p>
-          <p style="font-size: 0.65rem; color: var(--gray-400);">Hoy, 14:30 - Resolucion exitosa</p>
+          <p style="font-size: 0.65rem; color: var(--gray-400);">Hoy, 14:30 - Resolución exitosa</p>
         </div>
         <span style="background: rgba(34, 197, 94, 0.1); color: var(--green-active); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold;">Ver Grabación</span>
       </div>
-
       <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; opacity: 0.7; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <p style="font-size: 0.8rem; font-weight: 700;">Caso #4088</p>
@@ -166,44 +137,35 @@
 
   </main>
 
- <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // ==========================================
-    // 1. INICIALIZAR SUPABASE
-    // ==========================================
-    // ==========================================
-    // 1. INICIALIZAR SUPABASE
-    // ==========================================
+    // ── SUPABASE ──
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     const dbApp = window.supabase.createClient(API_URL, API_KEY);
 
-    // ==========================================
-    // 2. FUNCIÓN PARA CERRAR SESIÓN
-    // ==========================================
+    // ── ESTADO GLOBAL ──
+    let isEnGuardia = false;
+    let emergenciasChannel = null;
+    let currentEmergencyId = null;
+    let callFrame = null;
+
+    // ── LOGOUT ──
     async function logout() {
-      await dbApp.auth.signOut(); // Destruye la sesión en la base de datos
-      window.location.href = 'index.html'; // Redirige a la landing page
+      if (callFrame) { callFrame.destroy(); callFrame = null; }
+      await dbApp.auth.signOut();
+      window.location.href = 'index.html';
     }
 
-    // ==========================================
-    // LÓGICA DE INTERFAZ (Tu código original)
-    // ==========================================
-    
-    // Lógica de Navegación
+    // ── NAVEGACIÓN ──
     function showView(viewId, el) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.getElementById('view-' + viewId).classList.add('active');
-      if(el) el.classList.add('active');
+      if (el) el.classList.add('active');
     }
 
-    // Lógica de Estado de Guardia
-    // Lógica de Estado de Guardia
-    let isEnGuardia = false;
-    let emergenciasChannel = null; // Guardará la conexión en vivo
-    let currentEmergencyId = null; // Guardará el ID de la emergencia actual
-
+    // ── TOGGLE GUARDIA ──
     function toggleGuardia() {
       const toggle = document.getElementById('guardia-toggle');
       const title = document.getElementById('status-title');
@@ -221,28 +183,24 @@
         radarIcon.textContent = "📡";
         radarIcon.style.opacity = "1";
         
-        // CONEXIÓN EN TIEMPO REAL CON SUPABASE
+        // Escuchar emergencias en tiempo real
         emergenciasChannel = dbApp.channel('alertas-globales')
-          .on(
-            'postgres_changes',
-            { 
-              event: 'INSERT', 
-              schema: 'public', 
-              table: 'emergencias_activas', 
-              filter: "estado=eq.buscando" 
-            },
+          .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: "estado=eq.buscando" },
             (payload) => {
-              console.log('🚨 ¡NUEVA EMERGENCIA RECIBIDA!', payload);
-              
-              // Guardamos el ID para poder aceptarla después
+              console.log('🚨 EMERGENCIA:', payload);
               currentEmergencyId = payload.new.id;
-
-              // Mostramos la tarjeta de alerta en la pantalla
+              
+              // Mostrar ubicación si viene
+              const loc = payload.new.ubicacion_texto || 'Ubicación no disponible';
+              document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> ' + loc;
+              document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> ahora mismo';
+              
               document.getElementById('radar-visual').style.display = 'none';
               document.getElementById('incoming-alert').style.display = 'block';
               
-              // Aquí podrías agregar un sonido de alarma:
-              // new Audio('tu-sonido.mp3').play();
+              // Sonido de alerta
+              try { new Audio('data:audio/wav;base64,UklGRl9vT19teleVpZGVv').play(); } catch(e) {}
             }
           )
           .subscribe();
@@ -255,124 +213,141 @@
         radarIcon.textContent = "💤";
         radarIcon.style.opacity = "0.5";
         document.getElementById('incoming-alert').style.display = 'none';
+        document.getElementById('radar-visual').style.display = 'flex';
         
-        // Desconectamos el canal si se sale de guardia
         if (emergenciasChannel) {
           dbApp.removeChannel(emergenciasChannel);
+          emergenciasChannel = null;
         }
       }
     }
 
-    // Lógica de Alerta Entrante (Para demostración)
+    // ── SIMULAR EMERGENCIA (Dev) ──
     function simulateIncomingAlert() {
       if (!isEnGuardia) {
-        alert("Debes activar la guardia primero para recibir alertas.");
+        alert("Activa la guardia primero.");
         return;
       }
+      currentEmergencyId = null; // Simulación sin ID real
+      document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> Autopista Francisco Fajardo, Caracas';
+      document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> 12 segundos';
       document.getElementById('radar-visual').style.display = 'none';
       document.getElementById('incoming-alert').style.display = 'block';
-      
-      // Reproducir sonido de alerta real
-      // const audio = new Audio('alerta.mp3'); audio.play();
     }
 
-    // Aceptar la emergencia y pasar a WebRTC
-  let callFrame = null;
+    // ── ACEPTAR EMERGENCIA ──
+    async function acceptEmergency() {
+      // Si es simulación
+      if (!currentEmergencyId) {
+        alert("Simulación visual. En producción se conectará la sala real.");
+        document.getElementById('incoming-alert').style.display = 'none';
+        document.getElementById('radar-visual').style.display = 'flex';
+        showView('sala', document.querySelectorAll('.nav-item')[1]);
+        return;
+      }
 
-async function acceptEmergency() {
-  // 1. ESCUDO ANTICRASHEO: Si fue una simulación, no busca en la base de datos
-  if (!currentEmergencyId) {
-    alert("Esto es una simulación visual. No hay sala real conectada en la base de datos.");
-    showView('sala', document.querySelectorAll('.nav-item')[1]);
-    return;
-  }
+      try {
+        const { data: { user } } = await dbApp.auth.getUser();
 
-  try {
-    const { data: { user } } = await dbApp.auth.getUser();
+        // Actualizar estado en Supabase
+        const { error: updateError } = await dbApp.from('emergencias_activas')
+          .update({ estado: 'atendida', abogado_id: user.id })
+          .eq('id', currentEmergencyId);
 
-    // 2. Actualizamos el estado en Supabase
-    const { error: updateError } = await dbApp.from('emergencias_activas')
-      .update({ estado: 'atendida', abogado_id: user.id })
-      .eq('id', currentEmergencyId);
+        if (updateError) throw new Error("Error al asignar: " + updateError.message);
 
-    if (updateError) throw new Error("Error al asignar la emergencia: " + updateError.message);
+        // Buscar URL de la sala
+        const { data, error: selectError } = await dbApp.from('emergencias_activas')
+          .select('sala_webrtc_url')
+          .eq('id', currentEmergencyId)
+          .single();
 
-    // 3. Buscamos la URL de la sala
-    const { data, error: selectError } = await dbApp.from('emergencias_activas')
-      .select('sala_webrtc_url')
-      .eq('id', currentEmergencyId)
-      .single();
-
-    if (selectError || !data || !data.sala_webrtc_url) {
-      throw new Error("No se encontró la URL de videollamada para este caso.");
-    }
-
-    // 4. Inyectamos la interfaz de la sala en el DOM
-    showView('sala', document.querySelectorAll('.nav-item')[1]);
-    
-    const salaView = document.getElementById('view-sala');
-    salaView.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--navy-light);">
-        <h2 style="font-size:1.1rem; margin:0; color:var(--red-emergency);">🔴 ASISTENCIA EN VIVO</h2>
-        <button onclick="endCall()" style="background:var(--red-emergency); color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">Finalizar Llamada</button>
-      </div>
-      <div id="daily-abogado" style="width:100%; height:calc(100vh - 150px); background:#000;"></div>
-    `;
-    
-    // 5. Instanciamos Daily dentro del contenedor creado
-    callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
-      showLeaveButton: false,
-      iframeStyle: { width: '100%', height: '100%', border: '0' }
-    });
-
-    await callFrame.join({ url: data.sala_webrtc_url });
-
-  } catch (error) {
-    console.error("Error en acceptEmergency:", error);
-    alert(error.message);
-  }
-}
-
-// 6. FUNCIÓN ÚNICA DE FINALIZACIÓN (Elimina cualquier otra que se llame igual)
-function endCall() {
-  if (confirm("¿Estás seguro de finalizar la asistencia legal?")) {
-    if (callFrame) {
-      callFrame.leave();
-      callFrame.destroy(); // Esto es vital: apaga la cámara y destruye el iframe
-      callFrame = null;
-    }
-    showView('guardia', document.querySelectorAll('.nav-item')[0]);
-    document.getElementById('view-sala').innerHTML = ''; // Limpiamos el DOM
-    currentEmergencyId = null; // Reseteamos la variable para el siguiente caso
-  }
-}
-
-    function endCall() {
-      if(confirm("¿Estás seguro de finalizar la asistencia legal?")) {
-        if(callFrame) {
-          callFrame.leave();
-          callFrame.destroy(); // Destruimos el iframe para liberar la cámara
+        if (selectError || !data || !data.sala_webrtc_url) {
+          throw new Error("No se encontró la URL de videollamada.");
         }
-        showView('guardia', document.querySelectorAll('.nav-item')[0]);
-        document.getElementById('view-sala').innerHTML = ''; // Limpiamos la pantalla
+
+        // Ocultar alerta, mostrar sala
+        document.getElementById('incoming-alert').style.display = 'none';
+        showView('sala', document.querySelectorAll('.nav-item')[1]);
+        
+        // Preparar contenedor de video
+        const placeholder = document.getElementById('sala-placeholder');
+        const videoContainer = document.getElementById('sala-video-container');
+        placeholder.style.display = 'none';
+        videoContainer.style.display = 'flex';
+        videoContainer.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--navy-light); border-radius:12px 12px 0 0;">
+            <span style="color:var(--red-emergency); font-weight:800; font-size:0.9rem;">🔴 EN VIVO</span>
+            <span style="color:var(--green-active); font-size:0.75rem; font-weight:600;">☁️ Grabando</span>
+          </div>
+          <div id="daily-abogado" style="flex:1; background:#000; min-height:300px;"></div>
+          <div style="display:flex; gap:1rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.6); border-radius:0 0 12px 12px;">
+            <button onclick="toggleMuteReal()" id="btn-mute" style="width:50px; height:50px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:white; font-size:1.3rem; cursor:pointer;">🎤</button>
+            <button onclick="endCall()" style="width:50px; height:50px; border-radius:50%; border:none; background:var(--red-emergency); color:white; font-size:1.3rem; cursor:pointer;">📞</button>
+            <button onclick="toggleCamReal()" id="btn-cam" style="width:50px; height:50px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:white; font-size:1.3rem; cursor:pointer;">📷</button>
+          </div>
+        `;
+        
+        // Crear Daily frame
+        callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
+          showLeaveButton: false,
+          iframeStyle: { width: '100%', height: '100%', border: '0' }
+        });
+
+        await callFrame.join({ url: data.sala_webrtc_url });
+
+      } catch (error) {
+        console.error("Error:", error);
+        alert(error.message);
       }
-    }
-    // Controles de Videollamada
-    function toggleMute(btn) {
-      if(btn.textContent === '🎤') { btn.textContent = '🔇'; btn.style.background = 'rgba(239, 68, 68, 0.5)'; }
-      else { btn.textContent = '🎤'; btn.style.background = 'rgba(255,255,255,0.2)'; }
-    }
-    
-    function toggleCam(btn) {
-      if(btn.textContent === '📷') { btn.textContent = '🚫'; btn.style.background = 'rgba(239, 68, 68, 0.5)'; }
-      else { btn.textContent = '📷'; btn.style.background = 'rgba(255,255,255,0.2)'; }
     }
 
+    // ── FINALIZAR LLAMADA (ÚNICA DEFINICIÓN) ──
     function endCall() {
-      if(confirm("¿Finalizar la asistencia legal?")) {
-        // Desconectar WebRTC y volver a guardia
-        showView('guardia', document.querySelectorAll('.nav-item')[0]);
+      if (!confirm("¿Finalizar la asistencia legal?")) return;
+      
+      // Destruir Daily iframe completamente
+      if (callFrame) {
+        try {
+          callFrame.leave();
+          callFrame.destroy();
+        } catch(e) { console.log('Frame ya destruido'); }
+        callFrame = null;
       }
+      
+      // Resetear la sala
+      const placeholder = document.getElementById('sala-placeholder');
+      const videoContainer = document.getElementById('sala-video-container');
+      placeholder.style.display = 'flex';
+      videoContainer.style.display = 'none';
+      videoContainer.innerHTML = '';
+      
+      // Resetear la guardia
+      document.getElementById('incoming-alert').style.display = 'none';
+      document.getElementById('radar-visual').style.display = 'flex';
+      currentEmergencyId = null;
+      
+      // Volver a vista guardia
+      showView('guardia', document.querySelectorAll('.nav-item')[0]);
+    }
+
+    // ── CONTROLES DE VIDEO REALES ──
+    function toggleMuteReal() {
+      if (!callFrame) return;
+      const btn = document.getElementById('btn-mute');
+      const isMuted = callFrame.localAudio() === false;
+      callFrame.setLocalAudio(isMuted);
+      btn.textContent = isMuted ? '🎤' : '🔇';
+      btn.style.background = isMuted ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
+    }
+
+    function toggleCamReal() {
+      if (!callFrame) return;
+      const btn = document.getElementById('btn-cam');
+      const isOff = callFrame.localVideo() === false;
+      callFrame.setLocalVideo(isOff);
+      btn.textContent = isOff ? '📷' : '🚫';
+      btn.style.background = isOff ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
     }
   </script>
 </body>
