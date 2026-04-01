@@ -330,21 +330,29 @@
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // 4. ENVIAR WEBHOOK A N8N (Solución: Agregado 'mode: no-cors' para evitar bloqueos del navegador)
-        fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        // / 4. ENVIAR WEBHOOK A N8N (Solución: Micro-pausa garantizada)
+        try {
+          const webhookData = {
             tipo: 'emergencia',
             nombre: userProfile.nombre_completo,
             telefono_contacto: userProfile.contacto_emergencia_1_telefono,
             maps_link: mapsLink || 'Ubicación no disponible',
             timestamp: new Date().toISOString()
-          })
-        }).then(() => console.log('✅ Webhook n8n enviado sin bloqueos CORS'))
-          .catch(e => console.error('⚠️ Webhook falló localmente:', e));
-        
+          };
+
+          // Le damos a n8n exactamente 800ms para disparar el mensaje antes de cambiar de página
+          await Promise.race([
+            fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(webhookData)
+            }),
+            new Promise(resolve => setTimeout(resolve, 800))
+          ]);
+          console.log('✅ Webhook n8n disparado con éxito');
+        } catch(e) {
+          console.log('⚠️ Webhook ignorado por timeout:', e);
+        }
         // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
