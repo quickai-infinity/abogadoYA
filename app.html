@@ -276,7 +276,7 @@
 
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = '⏳<div class="sos-sub">CONECTANDO...</div>';
-      btn.style.pointerEvents = 'none'; // Evitar dobles clics
+      btn.style.pointerEvents = 'none'; 
       
       try {
         const { data: { user } } = await dbApp.auth.getUser();
@@ -331,9 +331,10 @@
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // 4. ENVIAR WEBHOOK A N8N (Disparar y olvidar, sin await)
+        // 4. ENVIAR WEBHOOK A N8N (Solución: Agregado 'mode: no-cors' para evitar bloqueos del navegador)
         fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tipo: 'emergencia',
@@ -342,7 +343,8 @@
             maps_link: mapsLink || 'Ubicación no disponible',
             timestamp: new Date().toISOString()
           })
-        }).catch(e => console.log('Webhook error ignorado:', e));
+        }).then(() => console.log('✅ Webhook n8n enviado sin bloqueos CORS'))
+          .catch(e => console.error('⚠️ Webhook falló localmente:', e));
         
         // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
@@ -374,7 +376,7 @@
         // Entrar con el token dispara la grabación en la nube automáticamente
         await frame.join({ url: room.url, token: tokenData.token });
         
-        // 7. Grabación local de respaldo y Gatillo
+        // 7. Grabación local de respaldo (Solución: Solo Audio, evita bloqueo de cámara en iOS)
         startHiddenRecording();
         document.addEventListener('visibilitychange', panicTrigger);
         
@@ -389,13 +391,14 @@
     // ── GRABACIÓN LOCAL ──
     async function startHiddenRecording() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
+        // SOLUCIÓN: video en false. Evita que la grabadora pelee por la cámara con Daily.co
+        const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         localRecorder = new MediaRecorder(stream);
         localRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
         localRecorder.start(1000);
         isRecording = true;
         document.getElementById('ac-nube').classList.add('active');
-      } catch (e) { console.error("Grabación fallida", e); }
+      } catch (e) { console.error("Grabación local backup fallida", e); }
     }
 
     async function panicTrigger() {
@@ -423,7 +426,6 @@
         const { error } = await dbApp.from('usuarios').update(updates).eq('auth_id', user.id);
         if (error) throw error;
         
-        // Actualizar perfil local
         userProfile = { ...userProfile, ...updates };
         showToast('✅ Contactos guardados');
       } catch (e) {
@@ -502,37 +504,30 @@
     function endUserCall() {
       if (!confirm('¿Finalizar la emergencia?')) return;
       
-      // Destruir Daily
       if (window._dailyFrame) {
         try { window._dailyFrame.leave(); window._dailyFrame.destroy(); } catch(e) {}
         window._dailyFrame = null;
       }
       
-      // Parar grabación local
       if (localRecorder && isRecording) {
         try { localRecorder.stop(); } catch(e) {}
         isRecording = false;
       }
       
-      // Quitar overlay de video
       const overlay = document.getElementById('video-overlay');
       if (overlay) overlay.remove();
       
-      // Resetear botón SOS
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
-      btn.style.pointerEvents = 'auto'; // Rehabilitar clics
+      btn.style.pointerEvents = 'auto';
       
-      // Desactivar indicadores
       document.querySelectorAll('.action-card').forEach(c => c.classList.remove('active'));
-      
       showToast('✅ Emergencia finalizada');
     }
 
     // ── LOGOUT ──
     function logout() { dbApp.auth.signOut().then(() => window.location.href = 'index.html'); }
 
-    // ── INIT ──
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     checkUser();
   </script>
