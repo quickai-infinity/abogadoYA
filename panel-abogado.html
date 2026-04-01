@@ -318,17 +318,40 @@
       // Resetear la sala
       const placeholder = document.getElementById('sala-placeholder');
       const videoContainer = document.getElementById('sala-video-container');
-      placeholder.style.display = 'flex';
-      videoContainer.style.display = 'none';
-      videoContainer.innerHTML = '';
+      if (placeholder) placeholder.style.display = 'flex';
+      if (videoContainer) { videoContainer.style.display = 'none'; videoContainer.innerHTML = ''; }
       
-      // Resetear la guardia
+      // Resetear la guardia - mostrar radar, ocultar alerta
       document.getElementById('incoming-alert').style.display = 'none';
       document.getElementById('radar-visual').style.display = 'flex';
       currentEmergencyId = null;
       
       // Volver a vista guardia
       showView('guardia', document.querySelectorAll('.nav-item')[0]);
+      
+      // IMPORTANTE: Si la guardia sigue activa, reconectar el listener
+      if (isEnGuardia) {
+        // Remover canal viejo si existe
+        if (emergenciasChannel) {
+          try { dbApp.removeChannel(emergenciasChannel); } catch(e) {}
+        }
+        // Reconectar para escuchar nuevas emergencias
+        emergenciasChannel = dbApp.channel('alertas-globales-' + Date.now())
+          .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: "estado=eq.buscando" },
+            (payload) => {
+              console.log('🚨 NUEVA EMERGENCIA:', payload);
+              currentEmergencyId = payload.new.id;
+              const loc = payload.new.ubicacion_texto || 'Ubicación no disponible';
+              const mapsLink = payload.new.maps_link || '';
+              document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> ' + (mapsLink ? '<a href="'+mapsLink+'" target="_blank" style="color:white;">'+loc+'</a>' : loc);
+              document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> ahora mismo';
+              document.getElementById('radar-visual').style.display = 'none';
+              document.getElementById('incoming-alert').style.display = 'block';
+            }
+          )
+          .subscribe();
+      }
     }
 
     // ── CONTROLES DE VIDEO REALES ──
