@@ -154,7 +154,7 @@
         <div class="profile-group">
           <label>WhatsApp de alerta</label>
           <input type="tel" id="contact-tel" placeholder="+58 4XX XXXXXXX">
-          <p class="hint">Recibirá un mensaje con tu ubicación en emergencias</p>
+          <p class="hint">Con prefijo internacional. Ej: 584241234567 (sin + ni espacios)</p>
         </div>
 
         <div class="profile-group">
@@ -218,6 +218,14 @@
       
       // Pedir GPS al cargar
       requestGPS();
+      
+      // Si no tiene contacto de emergencia, mostrar aviso
+      if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
+        setTimeout(() => {
+          showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
+          showView('perfil', document.querySelectorAll('.nav-item')[2]);
+        }, 1500);
+      }
     }
 
     // ── NAVEGACIÓN ──
@@ -260,144 +268,143 @@
       );
     }
 
-    // ── ENVIAR ALERTA WHATSAPP ──
-    function sendWhatsAppAlert() {
-      if (!userProfile) return;
-      
-      const tel1 = userProfile.contacto_emergencia_1_telefono;
-      const tel2 = userProfile.contacto_emergencia_2_telefono;
-      const nombre = userProfile.nombre_completo;
-      
-      let locationText = 'Ubicación no disponible';
-      let mapsLink = '';
-      
-      if (userLocation) {
-        mapsLink = 'https://maps.google.com/?q=' + userLocation.lat + ',' + userLocation.lng;
-        locationText = mapsLink;
-      }
-      
-      const mensaje = encodeURIComponent(
-        '🚨 *EMERGENCIA AbogadoYA*\n\n' +
-        '⚠️ ' + nombre + ' ha activado una alerta de emergencia durante un encuentro policial.\n\n' +
-        '📍 Ubicación: ' + locationText + '\n\n' +
-        '⏰ Hora: ' + new Date().toLocaleTimeString('es-VE') + '\n\n' +
-        'Por favor verifica que esté bien.'
-      );
-      
-      // Enviar al primer contacto
-      if (tel1) {
-        const num1 = tel1.replace(/[^0-9]/g, '');
-        window.open('https://wa.me/' + num1 + '?text=' + mensaje, '_blank');
-        document.getElementById('ac-alerta').classList.add('active');
-      }
-      
-      // Enviar al segundo contacto después de 2 segundos
-      if (tel2) {
-        setTimeout(() => {
-          const num2 = tel2.replace(/[^0-9]/g, '');
-          window.open('https://wa.me/' + num2 + '?text=' + mensaje, '_blank');
-        }, 2000);
-      }
-
-      // También disparar webhook de n8n si está configurado
-      sendN8nWebhook(nombre, userLocation, tel1);
-    }
-
-    // ── WEBHOOK N8N ──
-    async function sendN8nWebhook(nombre, location, telefono) {
-      try {
-        // Reemplaza con tu URL de webhook de n8n
-        const N8N_WEBHOOK = 'https://panel1.quickai.agency/webhook/abogadoya/emergencia';
-        
-        await fetch(N8N_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tipo: 'emergencia',
-            nombre: nombre,
-            telefono_contacto: telefono,
-            ubicacion: location ? { lat: location.lat, lng: location.lng } : null,
-            maps_link: location ? 'https://maps.google.com/?q=' + location.lat + ',' + location.lng : null,
-            timestamp: new Date().toISOString()
-          })
-        });
-      } catch (e) { console.log('n8n webhook error (no crítico):', e); }
-    }
+    // ── WEBHOOK N8N (envía WhatsApp automáticamente) ──
+    // Se llama directamente en triggerEmergency, no necesita función separada
 
     // ── EMERGENCIA ──
     async function triggerEmergency() {
+      // Verificar que tenga contacto de emergencia
+      if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
+        showToast('⚠️ Primero guarda un contacto de emergencia en Perfil', 'error');
+        showView('perfil', document.querySelectorAll('.nav-item')[2]);
+        return;
+      }
+
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = '⏳<div class="sos-sub">CONECTANDO...</div>';
       
       try {
         const { data: { user } } = await dbApp.auth.getUser();
+        const DAILY_KEY = '2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a';
         
         // 1. Crear sala con grabación
         const roomResp = await fetch('https://api.daily.co/v1/rooms', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer 2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ properties: { enable_recording: "cloud" } })
+          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            properties: { 
+              enable_recording: "cloud",
+              enable_chat: false,
+              start_audio_off: false,
+              start_video_off: false
+            } 
+          })
         });
         const room = await roomResp.json();
+        if (!room.url) throw new Error('No se pudo crear la sala');
 
         // 2. Token con auto-grabación
         const tokenResp = await fetch('https://api.daily.co/v1/meeting-tokens', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer 2d632b78894ae034f72f94e9abd129bdc7a2707741b7c92a4bdc9bd16fe3642a', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ properties: { room_name: room.name, is_owner: true, start_cloud_recording: true } })
+          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            properties: { 
+              room_name: room.name, 
+              is_owner: true, 
+              start_cloud_recording: true,
+              enable_recording: "cloud"
+            } 
+          })
         });
         const tokenData = await tokenResp.json();
         
-        // 3. Guardar emergencia con ubicación
+        // 3. Guardar emergencia con ubicación en Supabase
         const insertData = {
           ciudadano_id: user.id,
           sala_webrtc_url: room.url,
           estado: 'buscando'
         };
         
+        let mapsLink = null;
         if (userLocation) {
           insertData.ubicacion_texto = 'Lat: ' + userLocation.lat.toFixed(5) + ', Lng: ' + userLocation.lng.toFixed(5);
           insertData.ubicacion_lat = userLocation.lat;
           insertData.ubicacion_lng = userLocation.lng;
-          insertData.maps_link = 'https://maps.google.com/?q=' + userLocation.lat + ',' + userLocation.lng;
+          mapsLink = 'https://maps.google.com/?q=' + userLocation.lat + ',' + userLocation.lng;
+          insertData.maps_link = mapsLink;
         }
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // 4. Activar indicadores
+        // 4. ENVIAR WEBHOOK A N8N INMEDIATAMENTE
+        try {
+          await fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tipo: 'emergencia',
+              nombre: userProfile.nombre_completo,
+              telefono_contacto: userProfile.contacto_emergencia_1_telefono,
+              maps_link: mapsLink || 'Ubicación no disponible',
+              timestamp: new Date().toISOString()
+            })
+          });
+          console.log('✅ Webhook n8n enviado');
+        } catch (webhookErr) { 
+          console.log('⚠️ n8n no respondió (no crítico):', webhookErr); 
+        }
+        
+        // 5. Activar indicadores
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
-        showToast('🔴 Emergencia activada — Buscando abogado');
+        showToast('🔴 Emergencia activada');
         
-        // 5. Enviar alerta WhatsApp via n8n (en segundo plano, no abre WhatsApp)
-        sendN8nWebhook(userProfile.nombre_completo, userLocation, userProfile.contacto_emergencia_1_telefono);
-        document.getElementById('ac-alerta').classList.add('active');
+        // 6. ABRIR VIDEOLLAMADA - Método compatible iOS + Android + Desktop
+        const dailyUrl = room.url + '?t=' + tokenData.token;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         
-        // 6. Crear contenedor de video con botón de colgar
-        const videoOverlay = document.createElement('div');
-        videoOverlay.id = 'video-overlay';
-        videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
-        videoOverlay.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(10,22,40,0.95); z-index:10;">
-            <span style="color:#EF4444; font-weight:800; font-size:0.85rem;">🔴 EN VIVO — AbogadoYA</span>
-            <span style="color:#22C55E; font-size:0.7rem; font-weight:600;">☁️ Grabando</span>
-          </div>
-          <div id="daily-user-frame" style="flex:1;"></div>
-          <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
-            <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer; box-shadow:0 0 20px rgba(239,68,68,0.4);">📞</button>
-          </div>
-        `;
-        document.body.appendChild(videoOverlay);
+        if (isIOS) {
+          // En iOS Safari los iframes de Daily fallan - abrir en nueva pestaña
+          const videoOverlay = document.createElement('div');
+          videoOverlay.id = 'video-overlay';
+          videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center;';
+          videoOverlay.innerHTML = `
+            <div style="position:absolute; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(10,22,40,0.95);">
+              <span style="color:#EF4444; font-weight:800; font-size:0.85rem;">🔴 EN VIVO</span>
+              <span style="color:#22C55E; font-size:0.7rem; font-weight:600;">☁️ Grabando</span>
+            </div>
+            <p style="color:#94A3B8; font-size:0.9rem; margin-bottom:1rem; margin-top:3rem;">La videollamada está activa en otra pestaña</p>
+            <button onclick="endUserCall()" style="width:70px; height:70px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.8rem; cursor:pointer; box-shadow:0 0 30px rgba(239,68,68,0.5);">📞</button>
+            <p style="color:#64748B; font-size:0.7rem; margin-top:1rem;">Toca para finalizar</p>
+          `;
+          document.body.appendChild(videoOverlay);
+          window.open(dailyUrl, '_blank');
+        } else {
+          // En Android/Desktop usar iframe embebido
+          const videoOverlay = document.createElement('div');
+          videoOverlay.id = 'video-overlay';
+          videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
+          videoOverlay.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(10,22,40,0.95); z-index:10;">
+              <span style="color:#EF4444; font-weight:800; font-size:0.85rem;">🔴 EN VIVO — AbogadoYA</span>
+              <span style="color:#22C55E; font-size:0.7rem; font-weight:600;">☁️ Grabando</span>
+            </div>
+            <div id="daily-user-frame" style="flex:1;"></div>
+            <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
+              <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer; box-shadow:0 0 20px rgba(239,68,68,0.4);">📞</button>
+            </div>
+          `;
+          document.body.appendChild(videoOverlay);
+          
+          const frame = window.DailyIframe.createFrame(document.getElementById('daily-user-frame'), {
+            showLeaveButton: false,
+            iframeStyle: { width: '100%', height: '100%', border: '0' }
+          });
+          window._dailyFrame = frame;
+          await frame.join({ url: room.url, token: tokenData.token });
+        }
         
-        // 7. Entrar a sala en contenedor
-        const frame = window.DailyIframe.createFrame(document.getElementById('daily-user-frame'), {
-          showLeaveButton: false,
-          iframeStyle: { width: '100%', height: '100%', border: '0' }
-        });
-        window._dailyFrame = frame;
-        await frame.join({ url: room.url, token: tokenData.token });
-        
-        // 8. Grabación local de respaldo
+        // 7. Grabación local de respaldo
         startHiddenRecording();
         document.addEventListener('visibilitychange', panicTrigger);
         
