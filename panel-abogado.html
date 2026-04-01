@@ -71,7 +71,6 @@
 
   <main class="main-content">
     
-    <!-- VISTA GUARDIA -->
     <div id="view-guardia" class="view active">
       <div class="status-card">
         <h2 style="font-size: 1.2rem;" id="status-title">Fuera de Servicio</h2>
@@ -108,7 +107,6 @@
       <button onclick="simulateIncomingAlert()" style="margin-top: auto; background: none; border: 1px dashed rgba(255,255,255,0.2); color: var(--gray-400); padding: 10px; border-radius: 8px; font-size: 0.7rem; cursor: pointer;">Simular Emergencia (Dev)</button>
     </div>
 
-    <!-- VISTA SALA -->
     <div id="view-sala" class="view">
       <div id="sala-placeholder" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--gray-400);">
         <span style="font-size:3rem; margin-bottom:1rem;">📹</span>
@@ -117,21 +115,17 @@
       <div id="sala-video-container" style="display:none; flex:1; flex-direction:column; width:100%;"></div>
     </div>
 
-    <!-- VISTA HISTORIAL -->
     <div id="view-historial" class="view">
-      <h2 style="font-size: 1.1rem; margin-bottom: 1.5rem;">Historial de Asistencias</h2>
-      <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <p style="font-size: 0.8rem; font-weight: 700;">Caso #4092</p>
-          <p style="font-size: 0.65rem; color: var(--gray-400);">Hoy, 14:30 - Resolución exitosa</p>
-        </div>
-        <span style="background: rgba(34, 197, 94, 0.1); color: var(--green-active); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold;">Ver Grabación</span>
+      <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">Mi Bitácora y Ganancias</h2>
+      
+      <div style="background: linear-gradient(135deg, var(--gold), #D97706); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center; color: var(--navy); box-shadow: 0 10px 20px rgba(245, 158, 11, 0.2);">
+        <p style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Ingresos Generados</p>
+        <h3 style="font-size: 2.5rem; font-weight: 900; margin: 5px 0;" id="total-ganancias">$0.00</h3>
+        <p style="font-size: 0.8rem; font-weight: 700;">Total Asistencias: <span id="total-casos">0</span></p>
       </div>
-      <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; opacity: 0.7; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <p style="font-size: 0.8rem; font-weight: 700;">Caso #4088</p>
-          <p style="font-size: 0.65rem; color: var(--gray-400);">Ayer, 09:15 - Falsa alarma</p>
-        </div>
+
+      <div id="lista-historial" style="width: 100%; display: flex; flex-direction: column;">
+        <p style="text-align: center; color: var(--gray-400); font-size: 0.8rem;">Cargando registros...</p>
       </div>
     </div>
 
@@ -163,6 +157,65 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.getElementById('view-' + viewId).classList.add('active');
       if (el) el.classList.add('active');
+
+      // Si entra a historial, cargamos los datos frescos
+      if (viewId === 'historial') {
+        cargarHistorial();
+      }
+    }
+
+    // ── HISTORIAL Y GANANCIAS ──
+    async function cargarHistorial() {
+      const contenedor = document.getElementById('lista-historial');
+      if(!contenedor) return;
+      contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400);">Cargando registros...</p>';
+      
+      try {
+        const { data: { user } } = await dbApp.auth.getUser();
+        if(!user) return;
+        
+        // Buscar las emergencias atendidas por este abogado
+        const { data, error } = await dbApp.from('emergencias_activas')
+          .select('*')
+          .eq('abogado_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Variables de monetización
+        const tarifaPorCaso = 15.00; // Puedes cambiar la tarifa aquí
+        const totalCasos = data.length;
+        document.getElementById('total-ganancias').innerText = `$${(totalCasos * tarifaPorCaso).toFixed(2)}`;
+        document.getElementById('total-casos').innerText = totalCasos;
+
+        if (totalCasos === 0) {
+          contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400); font-size:0.85rem;">No tienes asistencias registradas aún.</p>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(caso => {
+          const fechaObj = new Date(caso.created_at);
+          const fecha = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', {hour: '2-digit', minute:'2-digit'});
+          const idCorto = caso.ciudadano_id ? caso.ciudadano_id.substring(0,6).toUpperCase() : 'DESC';
+          
+          html += `
+            <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <p style="font-size: 0.85rem; font-weight: 800; color: var(--white);">Caso #${idCorto}</p>
+                <p style="font-size: 0.65rem; color: var(--gray-400); margin: 3px 0;">${fecha}</p>
+                <p style="font-size: 0.75rem; color: var(--green-active); font-weight: 700;">+ $${tarifaPorCaso.toFixed(2)}</p>
+              </div>
+              <a href="https://dashboard.daily.co/recordings" target="_blank" style="text-decoration:none; background: rgba(34, 197, 94, 0.1); color: var(--green-active); padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 800;">Evidencia ☁️</a>
+            </div>
+          `;
+        });
+        contenedor.innerHTML = html;
+
+      } catch (e) {
+        console.error(e);
+        contenedor.innerHTML = '<p style="color:var(--red-emergency); text-align:center;">Error al cargar historial.</p>';
+      }
     }
 
     // ── TOGGLE GUARDIA ──
