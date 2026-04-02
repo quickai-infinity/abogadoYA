@@ -124,13 +124,19 @@
     </div>
 
     <div id="view-ia" class="view">
-      <h2 style="margin-bottom:0.6rem; font-size: 1rem;">🧠 Agente Legal IA</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+        <h2 style="font-size: 1rem;">🧠 Agente Legal IA</h2>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span id="ia-status" style="font-size:0.55rem; padding:3px 8px; border-radius:20px; font-weight:700; background:rgba(34,197,94,0.15); color:#22C55E;">● EN LÍNEA</span>
+          <span id="msg-counter" style="font-size:0.55rem; padding:3px 8px; border-radius:20px; font-weight:700; background:rgba(37,99,235,0.15); color:#60A5FA;">10/10</span>
+        </div>
+      </div>
       <div id="chat-messages">
-        <div class="msg bot">👋 Hola. Soy tu Agente Legal 24/7. Analizo leyes de Venezuela en tiempo real. ¿Qué está pasando?</div>
+        <div class="msg bot">👋 Hola. Soy tu Agente Legal 24/7. Conozco la CRBV, COPP, Ley de Tránsito, Gaceta Oficial y más. ¿Qué está pasando?</div>
       </div>
       <div class="chat-input-area">
         <button id="btn-mic" onclick="startDictation()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">🎙️</button>
-        <input type="text" id="chat-input" class="chat-input" placeholder="Dime qué sucede...">
+        <input type="text" id="chat-input" class="chat-input" placeholder="Describe tu situación...">
         <button class="btn-send" onclick="sendMessage()">🚀</button>
       </div>
     </div>
@@ -452,44 +458,206 @@
       }
     }
 
-    // ── IA CHAT ──
+    // ══════════════════════════════════════════════════
+    // ── AGENTE LEGAL IA — MOTOR COMPLETO ──
+    // ══════════════════════════════════════════════════
+
+    // ── GROQ CONFIG (Gratis — Llama 3.3 70B) ──
+    const GROQ_API_KEY = 'COLOCA_TU_API_KEY_GROQ_AQUI';
+    const GROQ_MODEL = 'llama-3.3-70b-versatile';
+    const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+    // ── LÍMITE DE MENSAJES DIARIOS ──
+    const MSG_LIMIT_FREE = 10;
+    function getMsgCount() {
+      const stored = JSON.parse(localStorage.getItem('aya_msg_count') || '{}');
+      const today = new Date().toISOString().slice(0, 10);
+      if (stored.date !== today) return { date: today, count: 0 };
+      return stored;
+    }
+    function incrementMsg() {
+      const data = getMsgCount();
+      data.count++;
+      localStorage.setItem('aya_msg_count', JSON.stringify(data));
+      updateMsgUI(data.count);
+      return data.count;
+    }
+    function updateMsgUI(count) {
+      const el = document.getElementById('msg-counter');
+      if (!el) return;
+      const left = Math.max(0, MSG_LIMIT_FREE - count);
+      el.textContent = left + '/' + MSG_LIMIT_FREE;
+      if (left <= 3) { el.style.background = 'rgba(239,68,68,0.15)'; el.style.color = '#EF4444'; }
+      else { el.style.background = 'rgba(37,99,235,0.15)'; el.style.color = '#60A5FA'; }
+    }
+    // Init counter on load
+    setTimeout(() => updateMsgUI(getMsgCount().count), 500);
+
+    // ── HISTORIAL DE CONVERSACIÓN ──
+    let chatHistory = [];
+
+    // ── BASE DE LEYES OFFLINE EXPANDIDA ──
     const LEYES_OFFLINE = [
-      { palabrasClave: ["grabar", "video", "telefono", "celular"], ley: "📍 RES. 109: Tienes derecho a grabar el procedimiento policial. Nadie puede quitarte el teléfono." },
-      { palabrasClave: ["revisar", "maleta", "carro", "vehiculo", "requisa"], ley: "📍 COPP Art. 191: La revisión requiere motivos fundados y 2 testigos que NO sean policías." },
-      { palabrasClave: ["cedula", "licencia", "documentos"], ley: "📍 No pueden retener tus documentos originales. Solo pueden verificarlos." },
-      { palabrasClave: ["detener", "detenido", "arrestar", "preso"], ley: "📍 Art. 44 CRBV: Solo puedes ser detenido con orden judicial o en flagrancia. Tienes derecho a llamar a un abogado." },
-      { palabrasClave: ["alcabala", "punto de control", "reten"], ley: "📍 Gaceta 42.458: Los funcionarios deben identificarse, no pueden estar en zonas oscuras y puedes grabar todo." },
-      { palabrasClave: ["dolar", "dolares", "divisa", "efectivo"], ley: "📍 Desde 2018 es LEGAL portar dólares en Venezuela. Ningún funcionario puede decomisarlos." }
+      // DERECHOS CONSTITUCIONALES (CRBV)
+      { k: ["grabar","video","telefono","celular","filmar","camara"], t: "⚖️ CRBV Art. 57 + Res. 109 CICPC: Tienes derecho constitucional a grabar cualquier procedimiento policial. Grabar NO es delito. Ningún funcionario puede quitarte el teléfono ni obligarte a borrar videos." },
+      { k: ["detener","detenido","arrestar","preso","calabozo","comisaria"], t: "⚖️ CRBV Art. 44: Solo puedes ser detenido con ORDEN JUDICIAL o en flagrancia (que te atrapen cometiendo un delito). En cualquier caso: 1) Derecho a llamar abogado y familiar. 2) Presentación ante juez en máx 48 horas. 3) Identificación completa de quien te detiene." },
+      { k: ["revisar","maleta","carro","vehiculo","requisa","registrar","bolso","mochila"], t: "⚖️ COPP Art. 191-193: La revisión personal o de vehículo requiere: 1) Motivos fundados y razonables. 2) DOS testigos civiles (NO pueden ser policías). 3) Respeto a tu dignidad. Sin testigos, la requisa es ILEGAL." },
+      { k: ["cedula","licencia","documentos","papeles","identificacion"], t: "⚖️ CRBV Art. 45: Los funcionarios pueden VERIFICAR tus documentos pero NO retenerlos. Si te piden la cédula, muéstrala pero no la sueltes. Retener documentos es abuso de autoridad (Art. 176 Ley Orgánica de Policía)." },
+      { k: ["alcabala","punto de control","reten","barrera","checkpoint"], t: "⚖️ Gaceta 42.458 + LOSPCPNB Art. 65: En alcabalas los funcionarios DEBEN: 1) Estar uniformados e identificados (nombre y placa visible). 2) Zona iluminada. 3) Permitirte grabar. 4) No retener documentos ni vehículo sin orden." },
+      { k: ["dolar","dolares","divisa","efectivo","cash","euros","moneda"], t: "⚖️ Gaceta 6.405 (2018) + Ley BCV: Es LEGAL portar divisas en Venezuela. No existe ley que prohíba tener dólares o euros. Ningún funcionario puede decomisarlos. Si lo hacen, es HURTO por abuso de funciones (Art. 200 CP)." },
+      { k: ["abogado","defensor","defensa","asistencia juridica","representacion"], t: "⚖️ CRBV Art. 49.1: Tienes derecho a DEFENSA en todo estado del proceso. Si no tienes abogado, el Estado debe asignarte un Defensor Público. Nunca declares sin abogado presente." },
+      { k: ["silencio","declarar","testimonio","confesion"], t: "⚖️ CRBV Art. 49.5: Tienes derecho a NO declarar contra ti mismo. El SILENCIO no puede usarse como prueba de culpabilidad. Nunca firmes nada sin leerlo y sin abogado." },
+      { k: ["tortura","golpe","maltrato","agresion","abuso","violencia policial"], t: "⚖️ CRBV Art. 46: Está PROHIBIDA toda forma de tortura, trato cruel o degradante. La Ley Especial contra Tortura (2013) sanciona con 15-25 años de prisión a funcionarios que torturen. Documenta lesiones con fotos y testigos." },
+      { k: ["menor","niño","adolescente","hijo","niña"], t: "⚖️ LOPNNA Art. 8: Los menores tienen protección REFORZADA. No pueden ser detenidos junto con adultos. Sus padres deben ser notificados de inmediato. Todo procedimiento requiere presencia de un Fiscal de Protección de NNA." },
+      { k: ["mujer","genero","acoso","violencia de genero","femicidio"], t: "⚖️ Ley Orgánica sobre el Derecho de las Mujeres a una Vida Libre de Violencia: 21 formas de violencia tipificadas. Puedes denunciar en: CICPC, Fiscalía, tribunales de violencia de género, o llamar al 0800-MUJERES." },
+      { k: ["casa","hogar","domicilio","allanamiento","entrada"], t: "⚖️ CRBV Art. 47: Tu hogar es INVIOLABLE. Solo pueden entrar con: 1) Orden judicial. 2) Para impedir un delito en curso. 3) Por orden sanitaria. Sin orden, puedes negarte y grabar." },
+      { k: ["comunicacion","telefono intervenido","privacidad","espiar","intervenir"], t: "⚖️ CRBV Art. 48: Las comunicaciones privadas son INVIOLABLES. Solo un juez puede autorizar intervenciones telefónicas, y solo por delitos graves. Interceptar sin orden es delito." },
+
+      // TRÁNSITO
+      { k: ["transito","multa","infraccion","boleta","ticket","papeleta"], t: "⚖️ Ley de Transporte Terrestre Art. 169-180: Las multas deben ser por escrito con número de boleta. El funcionario debe identificarse. Tienes 15 días hábiles para apelar ante la autoridad de tránsito." },
+      { k: ["licencia vencida","licencia de conducir","renovar licencia"], t: "⚖️ LTT Art. 92: Conducir sin licencia vigente es infracción. Sin embargo, la licencia vencida NO autoriza retención del vehículo si tienes todos los demás documentos en regla." },
+      { k: ["grua","remolcar","llevarse el carro","retencion vehiculo","patio"], t: "⚖️ LTT Art. 184: Solo pueden remolcar tu vehículo si: 1) Obstaculiza el tránsito. 2) Está involucrado en un hecho punible. 3) Faltan documentos obligatorios. Siempre deben darte un acta de retención." },
+      { k: ["seguro","poliza","rcv","responsabilidad civil"], t: "⚖️ LTT Art. 76: El seguro RCV (Responsabilidad Civil de Vehículos) es OBLIGATORIO. Circular sin seguro vigente es sancionable con multa. Verifica fecha de vencimiento regularmente." },
+      { k: ["accidente","choque","colision","siniestro"], t: "⚖️ LTT Art. 193: En caso de accidente: 1) NO muevas los vehículos. 2) Llama a tránsito. 3) Toma fotos y datos de testigos. 4) Reporta a tu seguro en 5 días. Si hay heridos, llama emergencias primero." },
+      { k: ["alcoholimetro","alcohol","borracho","alcoholemia","prueba de alcohol"], t: "⚖️ LTT Art. 169.11: Conducir bajo influencia de alcohol es sancionado con: multa + retención de licencia 1-3 años + retención del vehículo. Si hay accidente con heridos, es delito penal." },
+      { k: ["velocidad","radar","exceso de velocidad","limite"], t: "⚖️ LTT Art. 253: Límites: zona urbana 40 km/h, avenidas 60 km/h, autopistas 90-120 km/h. El exceso es sancionable con multa según el porcentaje de exceso." },
+      { k: ["cinturon","cinturón de seguridad","seguridad pasiva"], t: "⚖️ LTT Art. 169.4: El uso del cinturón es OBLIGATORIO para conductor y todos los pasajeros. Los niños menores de 10 años deben ir en asiento trasero con sistema de retención." },
+      { k: ["moto","motocicleta","casco","parrillero"], t: "⚖️ LTT Art. 169.8: En moto: casco obligatorio para conductor y pasajero. Prohibido circular entre vehículos (zigzag). Menores de 7 años no pueden ser pasajeros en moto." },
+
+      // PROCEDIMIENTOS Y PROTECCIÓN
+      { k: ["denuncia","denunciar","como denunciar","fiscalia","ministerio publico"], t: "⚖️ COPP Art. 267-269: Puedes denunciar en: 1) CICPC. 2) Fiscalía del Ministerio Público. 3) Cualquier órgano policial. La denuncia puede ser oral o escrita. Es GRATUITA y no necesitas abogado para denunciar." },
+      { k: ["habeas corpus","amparo","recurso","proteccion"], t: "⚖️ CRBV Art. 27: El Amparo Constitucional y el Habeas Corpus son GRATUITOS, no necesitan abogado para solicitarlos, y el juez debe resolverlos en 96 horas. Úsalo si te violan derechos fundamentales." },
+      { k: ["soborno","coima","plata","pagar","mordida","pago"], t: "⚖️ CP Art. 197-200: Tanto PEDIR como DAR soborno es DELITO. Si un funcionario te pide dinero: 1) No pagues. 2) Pide su identificación. 3) Graba si puedes. 4) Denuncia ante Fiscalía o la Defensoría del Pueblo." },
+      { k: ["testigo","presenciar","viste algo"], t: "⚖️ COPP Art. 224-228: Como testigo tienes derecho a: 1) No autoincriminarte. 2) Protección si hay riesgo. 3) No ser coaccionado. Mentir como testigo es delito de perjurio." },
+      { k: ["protesta","manifestacion","marcha","concentracion"], t: "⚖️ CRBV Art. 68: El derecho a manifestar pacíficamente es constitucional y NO requiere permiso previo (solo notificación). Las fuerzas de seguridad no pueden impedir manifestaciones pacíficas ni usar armas de fuego." },
+      { k: ["prensa","periodista","informacion","noticias","reportar"], t: "⚖️ CRBV Art. 57-58: Libertad de expresión e información son derechos constitucionales. Los periodistas pueden cubrir hechos en vía pública. Impedir su labor es censura." },
+      { k: ["propiedad","decomiso","confiscar","quitar pertenencias","bienes"], t: "⚖️ CRBV Art. 115: Tu propiedad es INVIOLABLE. Solo un tribunal puede ordenar decomiso de bienes mediante sentencia firme. Un policía NO puede quitarte pertenencias sin orden judicial." },
+
+      // DEFENSORÍA Y RECURSOS
+      { k: ["defensoría","defensor del pueblo","derechos humanos","quejas"], t: "⚖️ CRBV Art. 280-283: La Defensoría del Pueblo recibe denuncias por violaciones de derechos humanos. Es GRATUITA. Teléfono: 0800-DEFENSOR. También puedes acudir a la Fiscalía o tribunales de control." },
+      { k: ["hola","buenos dias","buenas tardes","buenas noches","ayuda","emergencia","que hago"], t: "🛡️ Soy tu Agente Legal IA. Cuéntame qué está pasando y te orientaré con las leyes de Venezuela que te protegen. Si es una emergencia policial, usa el botón SOS en la pantalla de inicio." }
     ];
 
+    // ── SYSTEM PROMPT LEGAL ──
+    const SYSTEM_PROMPT = `Eres el Agente Legal de AbogadoYA, una app de defensa ciudadana en Venezuela. Tu rol es proteger al ciudadano.
+
+REGLAS ESTRICTAS:
+1. Responde SIEMPRE en español venezolano, de forma clara, directa y breve (máx 150 palabras).
+2. Cita artículos específicos: CRBV, COPP, LTT, LOPNNA, etc.
+3. Si el usuario está en una situación de emergencia policial, da instrucciones PASO A PASO de qué hacer.
+4. Siempre recuerda al usuario que puede GRABAR todo (es su derecho).
+5. Si no conoces una ley específica, di "consulta con un abogado especializado" pero da orientación general.
+6. NUNCA inventes artículos o leyes. Si no estás seguro, dilo.
+7. Si el usuario pregunta algo NO legal, responde brevemente y redirige: "Para temas legales estoy aquí 24/7".
+8. Ante abuso policial, siempre recomienda: grabar, pedir identificación, exigir testigos, no firmar nada sin abogado.
+9. Si detectas peligro inmediato, recomienda usar el botón SOS de la app.
+10. También conoces leyes de tránsito de Venezuela (LTT) para situaciones de alcabalas, multas, retención de vehículos.
+
+CONTEXTO DE LEYES CLAVE:
+- CRBV Art. 44: Libertad personal, solo detención con orden judicial o flagrancia.
+- CRBV Art. 46: Prohibición de tortura y tratos crueles.
+- CRBV Art. 47: Inviolabilidad del hogar.
+- CRBV Art. 49: Debido proceso y derecho a la defensa.
+- CRBV Art. 57: Libertad de expresión, incluye grabar.
+- COPP Art. 191-193: Requisas requieren testigos civiles.
+- LOSPCPNB Art. 65: Funcionarios deben identificarse.
+- Gaceta 42.458: Normas de alcabalas y puntos de control.
+- LTT Art. 169-180: Infracciones y sanciones de tránsito.
+- Res. 109 CICPC: Derecho a grabar procedimientos policiales.
+
+Eres un aliado del ciudadano. Protege sus derechos.`;
+
+    // ── FUNCIÓN PRINCIPAL: ENVIAR MENSAJE ──
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const container = document.getElementById('chat-messages');
       const text = input.value.trim();
       if (!text) return;
 
+      // Verificar límite de mensajes
+      const msgData = getMsgCount();
+      if (msgData.count >= MSG_LIMIT_FREE) {
+        showToast('⚠️ Límite diario alcanzado. Vuelve mañana o hazte Premium.', 'error');
+        return;
+      }
+
+      // Mostrar mensaje del usuario
       const userDiv = document.createElement('div');
       userDiv.className = 'msg user';
       userDiv.innerText = text;
       container.appendChild(userDiv);
       input.value = '';
 
+      // Incrementar contador
+      incrementMsg();
+
+      // Mostrar "pensando"
       const botDiv = document.createElement('div');
       botDiv.className = 'msg bot';
-      botDiv.innerHTML = "Analizando... ⏳";
+      botDiv.innerHTML = '⚖️ Analizando tu caso... ⏳';
       container.appendChild(botDiv);
       container.scrollTop = container.scrollHeight;
 
+      // Agregar al historial
+      chatHistory.push({ role: 'user', content: text });
+      // Mantener solo últimos 6 mensajes para no pasarnos de tokens
+      if (chatHistory.length > 6) chatHistory = chatHistory.slice(-6);
+
+      // Intentar respuesta con IA (Groq)
       try {
-        const { data, error } = await dbApp.functions.invoke('agente-ia', { body: { mensajeUsuario: text } });
-        if (error || !data || !data.choices) throw new Error("Offline");
-        botDiv.innerHTML = data.choices[0].message.content.replace(/\n/g, '<br>');
+        if (GROQ_API_KEY === 'COLOCA_TU_API_KEY_GROQ_AQUI') throw new Error('No API key');
+
+        const resp = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...chatHistory],
+            max_tokens: 500,
+            temperature: 0.3
+          })
+        });
+
+        if (!resp.ok) throw new Error('API error: ' + resp.status);
+        const data = await resp.json();
+        const reply = data.choices[0].message.content;
+
+        botDiv.innerHTML = reply.replace(/\n/g, '<br>');
+        botDiv.style.borderLeft = '3px solid #22C55E';
+        chatHistory.push({ role: 'assistant', content: reply });
+
+        // Actualizar estado a online
+        const statusEl = document.getElementById('ia-status');
+        if (statusEl) { statusEl.innerHTML = '● EN LÍNEA'; statusEl.style.color = '#22C55E'; statusEl.style.background = 'rgba(34,197,94,0.15)'; }
+
       } catch (err) {
-        const textLower = text.toLowerCase();
-        let res = LEYES_OFFLINE.find(l => l.palabrasClave.some(p => textLower.includes(p)));
-        botDiv.innerHTML = res ? "⚖️ " + res.ley : "⚠️ <b>Modo Offline:</b> Mantén la calma. Graba todo, exige testigos, no firmes nada sin abogado.";
-        botDiv.style.borderLeft = "3px solid #F59E0B";
+        // ── FALLBACK OFFLINE INTELIGENTE ──
+        console.log('IA offline, usando base local:', err.message);
+        const textLower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        // Buscar mejores coincidencias (puede devolver múltiples)
+        let matches = LEYES_OFFLINE.filter(l => l.k.some(p => textLower.includes(p)));
+        
+        let response;
+        if (matches.length > 0) {
+          response = matches.slice(0, 2).map(m => m.t).join('<br><br>');
+        } else {
+          response = '⚠️ <b>Modo Offline:</b> No encontré una ley específica para tu consulta, pero recuerda:<br><br>' +
+            '1. 📹 <b>Graba todo</b> — Es tu derecho (Art. 57 CRBV)<br>' +
+            '2. 🪪 <b>Pide identificación</b> al funcionario (nombre y placa)<br>' +
+            '3. 👥 <b>Exige testigos</b> civiles para cualquier requisa<br>' +
+            '4. ✋ <b>No firmes nada</b> sin leer y sin abogado<br>' +
+            '5. 🔴 <b>Usa el botón SOS</b> para conectar con un abogado ahora';
+        }
+
+        botDiv.innerHTML = response;
+        botDiv.style.borderLeft = '3px solid #F59E0B';
+
+        // Actualizar estado a offline
+        const statusEl = document.getElementById('ia-status');
+        if (statusEl) { statusEl.innerHTML = '○ OFFLINE'; statusEl.style.color = '#F59E0B'; statusEl.style.background = 'rgba(249,115,22,0.15)'; }
       }
+
       container.scrollTop = container.scrollHeight;
     }
 
