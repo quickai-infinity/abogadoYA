@@ -47,17 +47,6 @@
     .btn-accept { background: var(--white); color: var(--red-emergency); border: none; padding: 1rem; width: 100%; border-radius: 12px; font-weight: 800; font-size: 1rem; margin-top: 1rem; cursor: pointer; }
 
     .video-room { position: relative; width: 100%; flex: 1; background: #000; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-
-    /* CHAT IA */
-    #chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
-    .msg { padding: 12px 16px; border-radius: 18px; font-size: 0.85rem; max-width: 85%; line-height: 1.4; }
-    .msg.bot { background: var(--navy-light); align-self: flex-start; border-bottom-left-radius: 2px; }
-    .msg.user { background: var(--blue-trust); align-self: flex-end; border-bottom-right-radius: 2px; }
-    .chat-input-area { display: flex; gap: 8px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); align-items: center; margin-top: 8px; }
-    .chat-input { flex: 1; background: none; border: none; color: white; outline: none; font-size: 0.85rem; font-family: inherit; }
-    .btn-send { background: var(--blue-trust); border: none; color: white; width: 35px; height: 35px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; }
-    @keyframes pulse-red { 0% { transform:scale(1); box-shadow:0 0 0 0 rgba(239,68,68,0.7); } 70% { transform:scale(1.1); box-shadow:0 0 0 15px rgba(239,68,68,0); } 100% { transform:scale(1); box-shadow:0 0 0 0 rgba(239,68,68,0); } }
-    .mic-active { background-color: var(--red-emergency) !important; animation: pulse-red 1.2s infinite !important; }
   </style>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 </head>
@@ -71,9 +60,6 @@
   <nav class="nav-top">
     <a class="nav-item active" onclick="showView('guardia', this)">
       <span style="font-size:1.2rem">📡</span>GUARDIA
-    </a>
-    <a class="nav-item" onclick="showView('ia', this)">
-      <span style="font-size:1.2rem">🧠</span>AGENTE
     </a>
     <a class="nav-item" onclick="showView('sala', this)">
       <span style="font-size:1.2rem">📹</span>SALA
@@ -119,24 +105,6 @@
       </div>
 
       <button onclick="simulateIncomingAlert()" style="margin-top: auto; background: none; border: 1px dashed rgba(255,255,255,0.2); color: var(--gray-400); padding: 10px; border-radius: 8px; font-size: 0.7rem; cursor: pointer;">Simular Emergencia (Dev)</button>
-    </div>
-
-    <div id="view-ia" class="view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-        <h2 style="font-size: 1rem;">🧠 Asistente Legal IA</h2>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span id="ia-status" style="font-size:0.55rem; padding:3px 8px; border-radius:20px; font-weight:700; background:rgba(34,197,94,0.15); color:#22C55E;">● EN LÍNEA</span>
-          <span id="msg-counter" style="font-size:0.55rem; padding:3px 8px; border-radius:20px; font-weight:700; background:rgba(245,158,11,0.15); color:#F59E0B;">PRO</span>
-        </div>
-      </div>
-      <div id="chat-messages">
-        <div class="msg bot">👋 Hola, colega. Soy tu asistente legal IA. Puedo ayudarte con consultas de CRBV, COPP, Ley de Tránsito, jurisprudencia y más. ¿En qué te apoyo?</div>
-      </div>
-      <div class="chat-input-area">
-        <button id="btn-mic" onclick="startDictation()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">🎙️</button>
-        <input type="text" id="chat-input" class="chat-input" placeholder="Consulta legal...">
-        <button class="btn-send" onclick="sendMessage()">🚀</button>
-      </div>
     </div>
 
     <div id="view-sala" class="view">
@@ -457,149 +425,6 @@
       btn.textContent = isOff ? '📷' : '🚫';
       btn.style.background = isOff ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
     }
-
-    // ══════════════════════════════════════════════════
-    // ── AGENTE LEGAL IA — MOTOR COMPLETO (ABOGADO) ──
-    // ══════════════════════════════════════════════════
-
-    const GROQ_API_KEY = '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';
-    const GROQ_MODEL = 'llama-3.3-70b-versatile';
-    const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-
-    // Abogados no tienen límite de mensajes (es su herramienta de trabajo)
-    let chatHistory = [];
-
-    const LEYES_OFFLINE = [
-      { k: ["grabar","video","telefono","celular","filmar"], t: "⚖️ CRBV Art. 57 + Res. 109 CICPC: Derecho a grabar procedimientos policiales. Grabar NO es delito." },
-      { k: ["detener","detenido","arrestar","preso","calabozo"], t: "⚖️ CRBV Art. 44: Detención solo con orden judicial o flagrancia. Presentación ante juez en máx 48h." },
-      { k: ["revisar","maleta","carro","vehiculo","requisa","registrar"], t: "⚖️ COPP Art. 191-193: Requisa requiere motivos fundados + 2 testigos civiles. Sin testigos = ILEGAL." },
-      { k: ["cedula","licencia","documentos","identificacion"], t: "⚖️ CRBV Art. 45: Funcionarios verifican documentos pero NO los retienen. Retención = abuso de autoridad." },
-      { k: ["alcabala","punto de control","reten"], t: "⚖️ Gaceta 42.458 + LOSPCPNB Art. 65: Funcionarios deben identificarse, zona iluminada, permitir grabación." },
-      { k: ["dolar","dolares","divisa","efectivo"], t: "⚖️ Gaceta 6.405 (2018): Es LEGAL portar divisas. Decomiso = hurto por abuso de funciones (Art. 200 CP)." },
-      { k: ["abogado","defensor","defensa"], t: "⚖️ CRBV Art. 49.1: Derecho a defensa en todo estado del proceso. Estado debe asignar Defensor Público." },
-      { k: ["silencio","declarar","confesion"], t: "⚖️ CRBV Art. 49.5: Derecho a no declarar contra sí mismo. Silencio no es prueba de culpabilidad." },
-      { k: ["tortura","golpe","maltrato","abuso"], t: "⚖️ CRBV Art. 46 + Ley contra Tortura 2013: 15-25 años de prisión a funcionarios. Documentar lesiones." },
-      { k: ["menor","niño","adolescente","lopnna"], t: "⚖️ LOPNNA Art. 8: Protección reforzada. No detención con adultos. Notificación inmediata a padres." },
-      { k: ["mujer","genero","violencia de genero"], t: "⚖️ Ley Orgánica Derecho Mujeres: 21 formas de violencia tipificadas. 0800-MUJERES." },
-      { k: ["domicilio","allanamiento","casa","hogar"], t: "⚖️ CRBV Art. 47: Inviolabilidad del hogar. Solo entrada con orden judicial o delito en curso." },
-      { k: ["transito","multa","infraccion","boleta"], t: "⚖️ LTT Art. 169-180: Multas por escrito. Funcionario identificado. 15 días para apelar." },
-      { k: ["grua","remolcar","retencion vehiculo"], t: "⚖️ LTT Art. 184: Remolque solo si obstaculiza tránsito, hecho punible, o faltan documentos." },
-      { k: ["accidente","choque","colision"], t: "⚖️ LTT Art. 193: No mover vehículos. Llamar tránsito. Fotos + testigos. Reportar a seguro en 5 días." },
-      { k: ["habeas corpus","amparo","recurso"], t: "⚖️ CRBV Art. 27: Amparo y Habeas Corpus gratuitos, sin abogado requerido, resolución en 96 horas." },
-      { k: ["soborno","coima","mordida"], t: "⚖️ CP Art. 197-200: Pedir y dar soborno es DELITO. Grabar, pedir identificación, denunciar." },
-      { k: ["protesta","manifestacion","marcha"], t: "⚖️ CRBV Art. 68: Derecho a manifestar pacíficamente. No requiere permiso, solo notificación." },
-      { k: ["propiedad","decomiso","confiscar"], t: "⚖️ CRBV Art. 115: Propiedad inviolable. Solo decomiso por sentencia judicial firme." },
-      { k: ["denuncia","denunciar","fiscalia"], t: "⚖️ COPP Art. 267-269: Denuncia en CICPC, Fiscalía o cualquier cuerpo policial. Gratuita, oral o escrita." },
-      { k: ["hola","ayuda","consulta"], t: "⚖️ Soy tu asistente legal IA. Consulta sobre CRBV, COPP, LTT, LOPNNA o cualquier materia legal venezolana." }
-    ];
-
-    const SYSTEM_PROMPT_ABOGADO = `Eres el Asistente Legal IA de AbogadoYA, diseñado para ABOGADOS profesionales de Venezuela.
-
-REGLAS:
-1. Responde en español, de forma técnica pero concisa (máx 200 palabras).
-2. Cita artículos específicos con precisión: CRBV, COPP, CP, LTT, LOPNNA, LOSPCPNB, etc.
-3. Puedes dar análisis jurídico más profundo que al ciudadano común.
-4. Incluye jurisprudencia relevante del TSJ cuando aplique.
-5. Si el abogado consulta sobre estrategia de defensa, orienta sobre líneas argumentales.
-6. NUNCA inventes artículos. Si no estás seguro, indícalo.
-7. Para temas fuera de Venezuela, indica que tu especialidad es legislación venezolana.
-8. Puedes hacer análisis comparativo con legislación de otros países si se solicita.
-9. Incluye plazos procesales cuando sea relevante (días hábiles para recursos, apelaciones, etc.).
-10. Si el abogado necesita un modelo de escrito, ofrece la estructura general.
-
-CONTEXTO LEGAL COMPLETO:
-- CRBV: Derechos fundamentales (Art. 19-129), Poder Judicial (Art. 253-272)
-- COPP: Procedimientos penales, medidas cautelares, recursos
-- CP: Tipos penales, agravantes, atenuantes
-- LTT: Infracciones, sanciones, procedimientos de tránsito
-- LOPNNA: Protección integral NNA
-- LOSPCPNB: Regulación del servicio de policía
-- Ley contra Tortura (2013)
-- Ley Orgánica Derecho Mujeres
-
-Eres una herramienta profesional para abogados.`;
-
-    async function sendMessage() {
-      const input = document.getElementById('chat-input');
-      const container = document.getElementById('chat-messages');
-      const text = input.value.trim();
-      if (!text) return;
-
-      const userDiv = document.createElement('div');
-      userDiv.className = 'msg user';
-      userDiv.innerText = text;
-      container.appendChild(userDiv);
-      input.value = '';
-
-      const botDiv = document.createElement('div');
-      botDiv.className = 'msg bot';
-      botDiv.innerHTML = '⚖️ Analizando... ⏳';
-      container.appendChild(botDiv);
-      container.scrollTop = container.scrollHeight;
-
-      chatHistory.push({ role: 'user', content: text });
-      if (chatHistory.length > 8) chatHistory = chatHistory.slice(-8);
-
-      try {
-        if (GROQ_API_KEY === 'COLOCA_TU_API_KEY_GROQ_AQUI') throw new Error('No API key');
-
-        const resp = await fetch(GROQ_URL, {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: [{ role: 'system', content: SYSTEM_PROMPT_ABOGADO }, ...chatHistory],
-            max_tokens: 600,
-            temperature: 0.3
-          })
-        });
-
-        if (!resp.ok) throw new Error('API error: ' + resp.status);
-        const data = await resp.json();
-        const reply = data.choices[0].message.content;
-
-        botDiv.innerHTML = reply.replace(/\n/g, '<br>');
-        botDiv.style.borderLeft = '3px solid #22C55E';
-        chatHistory.push({ role: 'assistant', content: reply });
-
-        const statusEl = document.getElementById('ia-status');
-        if (statusEl) { statusEl.innerHTML = '● EN LÍNEA'; statusEl.style.color = '#22C55E'; }
-
-      } catch (err) {
-        console.log('IA offline:', err.message);
-        const textLower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        let matches = LEYES_OFFLINE.filter(l => l.k.some(p => textLower.includes(p)));
-        
-        let response;
-        if (matches.length > 0) {
-          response = matches.slice(0, 3).map(m => m.t).join('<br><br>');
-        } else {
-          response = '⚠️ <b>Modo Offline:</b> Base local limitada. Artículos disponibles: CRBV, COPP, CP, LTT, LOPNNA. Intenta ser más específico o conecta a internet.';
-        }
-
-        botDiv.innerHTML = response;
-        botDiv.style.borderLeft = '3px solid #F59E0B';
-        const statusEl = document.getElementById('ia-status');
-        if (statusEl) { statusEl.innerHTML = '○ OFFLINE'; statusEl.style.color = '#F59E0B'; }
-      }
-      container.scrollTop = container.scrollHeight;
-    }
-
-    // ── DICTADO POR VOZ ──
-    function startDictation() {
-      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!Recognition) return alert('Tu navegador no soporta voz');
-      const rec = new Recognition();
-      rec.lang = 'es-VE';
-      const micBtn = document.getElementById('btn-mic');
-      rec.onstart = () => { micBtn.classList.add('mic-active'); document.getElementById('chat-input').placeholder = "Escuchando..."; };
-      rec.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendMessage(); };
-      rec.onend = () => { micBtn.classList.remove('mic-active'); document.getElementById('chat-input').placeholder = "Consulta legal..."; };
-      rec.onerror = () => micBtn.classList.remove('mic-active');
-      rec.start();
-    }
-
-    document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
   </script>
 </body>
 </html>
