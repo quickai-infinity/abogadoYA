@@ -163,39 +163,19 @@
 
   </main>
 
+  <div id="panelBilletera" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#0A1628; border: 1px solid #1e293b; padding:2rem; border-radius:12px; z-index:9999; width:90%; max-width:400px; color:white; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <button onclick="document.getElementById('panelBilletera').style.display='none'" style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✖</button>
+      <h2 style="margin-top:0;">Saldo Disponible</h2>
+      <h1 id="saldoActualUI" style="font-size:3rem; color:#10B981; margin:10px 0;">$0.00</h1>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+          <button onclick="abrirRecarga('crypto')" style="background:#F3BA2F; color:black; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Recargar con USDT</button>
+          <button onclick="abrirRecarga('pagomovil')" style="background:#0284c7; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Reportar Pago Móvil</button>
+      </div>
+  </div>
+
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   
   <script>
-    // Mostrar el panel visual
-function mostrarBilletera() {
-    document.getElementById('panelBilletera').style.display = 'block';
-    cargarSaldoReal(); // Llamamos a la base de datos
-}
-
-// Consultar el dinero real en Supabase
-async function cargarSaldoReal() {
-    const { data: { user } } = await dbApp.auth.getUser();
-    if (!user) return;
-
-    const { data: billetera, error } = await dbApp
-        .from('saldos')
-        .select('creditos_disponibles')
-        .eq('usuario_id', user.id)
-        .single();
-
-    if (billetera) {
-        document.getElementById('saldoActualUI').innerText = `$${billetera.creditos_disponibles.toFixed(2)}`;
-    }
-}
-
-// Funciones vacías para los botones de pago (las llenaremos después)
-function abrirRecarga(metodo) {
-    if(metodo === 'crypto') {
-        alert("Aquí mostraremos tu código QR de Binance Pay / TRC20");
-    } else {
-        alert("Aquí abriremos el formulario para subir la captura del Pago Móvil");
-    }
-}
     // ── SUPABASE ──
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
@@ -234,6 +214,10 @@ function abrirRecarga(metodo) {
           document.getElementById('contact-name-2').value = profile.contacto_emergencia_2_nombre || '';
           document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
         }
+
+        // Llamamos a la verificación de Admin aquí mismo, después de confirmar el usuario
+        verificarSiEsAdmin(user.id);
+        
       } catch (e) { console.error(e); }
       document.getElementById('loader').style.display = 'none';
       requestGPS();
@@ -360,9 +344,7 @@ function abrirRecarga(metodo) {
             <div id="daily-user-frame" style="flex:1;"></div>
             <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
               <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer;">📞</button>
-              <button onclick="mostrarBilletera()" class="nav-btn">
-              💰 Mi Billetera
-              </button>
+              <button onclick="mostrarBilletera()" style="border-radius:12px; border:none; background:#2563EB; color:white; font-weight:bold; cursor:pointer; padding: 0 15px;">💰 Mi Billetera</button>
             </div>`;
           
           document.body.appendChild(videoOverlay);
@@ -470,20 +452,11 @@ function abrirRecarga(metodo) {
     }
 
     function logout() { dbApp.auth.signOut().then(() => window.location.href = 'index.html'); }
+    
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-    checkUser();
-  </script>
-  <script src="agente-ia.js"></script>
-<div id="panelBilletera" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#0A1628; border: 1px solid #1e293b; padding:2rem; border-radius:12px; z-index:9999; width:90%; max-width:400px; color:white; text-align:center;">
-    <button onclick="document.getElementById('panelBilletera').style.display='none'" style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✖</button>
-    <h2 style="margin-top:0;">Saldo Disponible</h2>
-    <h1 id="saldoActualUI" style="font-size:3rem; color:#10B981; margin:10px 0;">$0.00</h1>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-        <button onclick="abrirRecarga('crypto')" style="background:#F3BA2F; color:black; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Recargar con USDT</button>
-    </div>
-</div>
 
-async function verificarSiEsAdmin(userId) {
+    // ── FUNCIONES DE ADMIN Y BILLETERA ──
+    async function verificarSiEsAdmin(userId) {
         const { data: perfil } = await dbApp.from('usuarios').select('rol').eq('auth_id', userId).single();
         
         if (perfil && perfil.rol === 'admin') {
@@ -504,7 +477,6 @@ async function verificarSiEsAdmin(userId) {
         const { data: { user } } = await dbApp.auth.getUser();
         if (!user) return;
         
-        // Se usa maybeSingle() para evitar errores en la consola si el usuario es nuevo y su billetera está vacía
         const { data: billetera } = await dbApp.from('saldos').select('creditos_disponibles').eq('usuario_id', user.id).maybeSingle();
         
         if (billetera) {
@@ -522,26 +494,10 @@ async function verificarSiEsAdmin(userId) {
         }
     }
 
-    // Ejecutamos checkUser (tu función original) y al terminar verificamos si es admin
-    checkUser().then(async () => {
-        const { data: { user } } = await dbApp.auth.getUser();
-        if (user) {
-            verificarSiEsAdmin(user.id);
-        }
-    });
+    // Inicializamos todo
+    checkUser();
+
   </script>
-  
   <script src="agente-ia.js"></script>
-
-  <div id="panelBilletera" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#0A1628; border: 1px solid #1e293b; padding:2rem; border-radius:12px; z-index:9999; width:90%; max-width:400px; color:white; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-      <button onclick="document.getElementById('panelBilletera').style.display='none'" style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✖</button>
-      <h2 style="margin-top:0;">Saldo Disponible</h2>
-      <h1 id="saldoActualUI" style="font-size:3rem; color:#10B981; margin:10px 0;">$0.00</h1>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-          <button onclick="abrirRecarga('crypto')" style="background:#F3BA2F; color:black; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Recargar con USDT</button>
-          <button onclick="abrirRecarga('pagomovil')" style="background:#0284c7; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Reportar Pago Móvil</button>
-      </div>
-  </div>
-
 </body>
 </html>
