@@ -164,7 +164,9 @@
   </main>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  // Mostrar el panel visual
+  
+  <script>
+    // Mostrar el panel visual
 function mostrarBilletera() {
     document.getElementById('panelBilletera').style.display = 'block';
     cargarSaldoReal(); // Llamamos a la base de datos
@@ -194,7 +196,6 @@ function abrirRecarga(metodo) {
         alert("Aquí abriremos el formulario para subir la captura del Pago Móvil");
     }
 }
-  <script>
     // ── SUPABASE ──
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
