@@ -193,7 +193,7 @@
         const { data: { user } } = await dbApp.auth.getUser();
         if(!user) return;
         
-        // Buscar las emergencias atendidas por este abogado
+        // 1. Buscar las emergencias atendidas por este abogado
         const { data, error } = await dbApp.from('emergencias_activas')
           .select('*')
           .eq('abogado_id', user.id)
@@ -201,10 +201,19 @@
 
         if (error) throw error;
 
-        // Variables de monetización
-        const tarifaPorCaso = 15.00; // Puedes cambiar la tarifa aquí
+        // 2. NUEVA CONEXIÓN: Buscar el saldo real en la tabla saldos_abogados
+        const { data: billeteraAbogado } = await dbApp.from('saldos_abogados')
+          .select('saldo_acumulado')
+          .eq('abogado_id', user.id)
+          .maybeSingle();
+
+        // 3. Variables de monetización
+        const gananciasReales = billeteraAbogado ? billeteraAbogado.saldo_acumulado : 0.00;
         const totalCasos = data.length;
-        document.getElementById('total-ganancias').innerText = `$${(totalCasos * tarifaPorCaso).toFixed(2)}`;
+        const tarifaPorCaso = 15.00; // Solo se usa para mostrar de a cuánto fue cada ingreso en la lista visual
+
+        // 4. Actualizamos la pantalla visual superior
+        document.getElementById('total-ganancias').innerText = `$${parseFloat(gananciasReales).toFixed(2)}`;
         document.getElementById('total-casos').innerText = totalCasos;
 
         if (totalCasos === 0) {
@@ -212,6 +221,7 @@
           return;
         }
 
+        // 5. Construimos la lista visual de casos abajo
         let html = '';
         data.forEach(caso => {
           const fechaObj = new Date(caso.created_at);
@@ -229,6 +239,13 @@
             </div>
           `;
         });
+        contenedor.innerHTML = html;
+
+      } catch (e) {
+        console.error(e);
+        contenedor.innerHTML = '<p style="color:var(--red-emergency); text-align:center;">Error al cargar historial.</p>';
+      }
+    }
         contenedor.innerHTML = html;
 
       } catch (e) {

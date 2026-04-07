@@ -200,37 +200,57 @@
       setTimeout(() => { t.className = 'toast'; }, 3000);
     }
 
-    // ── CHECK USER ──
-    async function checkUser() {
-      try {
-        const { data: { user } } = await dbApp.auth.getUser();
-        if (!user) { window.location.href = 'index.html'; return; }
-        currentUser = user;
-        
-        const { data: profile } = await dbApp.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle();
-        if (profile) {
-          userProfile = profile;
-          document.getElementById('welcome-name').innerText = 'Hola, ' + profile.nombre_completo.split(' ')[0];
-          document.getElementById('profile-name').innerText = profile.nombre_completo;
-          document.getElementById('contact-name').value = profile.contacto_emergencia_1_nombre || '';
-          document.getElementById('contact-tel').value = profile.contacto_emergencia_1_telefono || '';
-          document.getElementById('contact-name-2').value = profile.contacto_emergencia_2_nombre || '';
-          document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
-        }
-
-        // Llamamos a la verificación de Admin aquí mismo, después de confirmar el usuario
-        verificarSiEsAdmin(user.id);
-        
-      } catch (e) { console.error(e); }
-      document.getElementById('loader').style.display = 'none';
-      requestGPS();
-      if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
-        setTimeout(() => {
-          showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
-          showView('perfil', document.querySelectorAll('.nav-item')[2]);
-        }, 1500);
-      }
+   // ── CHECK USER ──
+async function checkUser() {
+  try {
+    const { data: { user } } = await dbApp.auth.getUser();
+    if (!user) { window.location.href = 'index.html'; return; }
+    currentUser = user;
+    
+    // Carga de Perfil
+    const { data: profile } = await dbApp.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle();
+    if (profile) {
+      userProfile = profile;
+      document.getElementById('welcome-name').innerText = 'Hola, ' + profile.nombre_completo.split(' ')[0];
+      document.getElementById('profile-name').innerText = profile.nombre_completo;
+      document.getElementById('contact-name').value = profile.contacto_emergencia_1_nombre || '';
+      document.getElementById('contact-tel').value = profile.contacto_emergencia_1_telefono || '';
+      document.getElementById('contact-name-2').value = profile.contacto_emergencia_2_nombre || '';
+      document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
     }
+
+    // ── AQUÍ SE PEGA LA CONEXIÓN A LA TABLA SALDOS ──
+    const { data: billetera } = await dbApp.from('saldos')
+        .select('creditos_disponibles')
+        .eq('usuario_id', user.id)
+        .maybeSingle();
+    
+    const saldoReal = billetera ? billetera.creditos_disponibles : 0.00;
+    
+    // Actualizamos el panel principal (si creaste el div 'main-balance')
+    const mainBalance = document.getElementById('main-balance');
+    if (mainBalance) mainBalance.innerText = `Saldo: $${saldoReal.toFixed(2)}`;
+    
+    // Actualizamos la ventana oculta de la Billetera
+    const saldoUI = document.getElementById('saldoActualUI');
+    if (saldoUI) saldoUI.innerText = `$${saldoReal.toFixed(2)}`;
+    // ────────────────────────────────────────────────
+
+    // Llamamos a la verificación de Admin
+    verificarSiEsAdmin(user.id);
+    
+  } catch (e) { console.error(e); }
+  
+  document.getElementById('loader').style.display = 'none';
+  requestGPS();
+  
+  if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
+    setTimeout(() => {
+      showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
+      showView('perfil', document.querySelectorAll('.nav-item')[2]);
+    }, 1500);
+  }
+}
 
     // ── NAVEGACIÓN ──
     function showView(viewId, el) {
