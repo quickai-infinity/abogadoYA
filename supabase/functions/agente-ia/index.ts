@@ -5,35 +5,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PROMPT_CIUDADANO = `Eres el 'Agente Legal 24/7', un abogado penalista venezolano experto en defensa ciudadana. 
+Tu objetivo es dar respuestas cortas, directas y urgentes a ciudadanos en alcabalas.
+1. GRABACIONES: Resolución Conjunta 109. Derecho a grabar procedimientos.
+2. REVISIÓN: COPP Art. 191 y 193. Solo con motivos fundados y 2 testigos.
+3. DOCUMENTOS: Tránsito. No pueden retener documentos sin flagrancia.
+Responde en máximo 3 o 4 líneas, citando la ley y con tono protector.`;
+
+const PROMPT_ABOGADO = `Eres el Asistente Legal IA de AbogadoYA para ABOGADOS profesionales de Venezuela.
+Responde con español técnico-jurídico, conciso.
+Cita artículos con precisión: CRBV, COPP, CP, LTT, LOPNNA.
+Orienta sobre estrategias de defensa y líneas argumentales.
+NUNCA inventes artículos.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { mensajeUsuario } = await req.json()
+    // Recibimos el historial y el tipo de usuario desde tu frontend
+    const { chatHistory, isAbogado } = await req.json()
     const openAiKey = Deno.env.get('OPENAI_API_KEY') 
+    
+    if (!openAiKey) throw new Error('API Key de OpenAI no configurada')
+
+    const systemPrompt = isAbogado ? PROMPT_ABOGADO : PROMPT_CIUDADANO;
+
+    // Construimos los mensajes con la memoria de la conversación
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...chatHistory
+    ];
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
+        'Authorization': `Bearer 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`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Eres el 'Agente Legal 24/7', un abogado penalista venezolano experto en defensa ciudadana. 
-            Tu objetivo es dar respuestas cortas, directas y urgentes a ciudadanos en alcabalas.
-            1. GRABACIONES: Resolución Conjunta 109. Derecho a grabar procedimientos.
-            2. REVISIÓN: COPP Art. 191 y 193. Solo con motivos fundados y 2 testigos.
-            3. DOCUMENTOS: Tránsito. No pueden retener documentos sin flagrancia.
-            Responde en máximo 3 o 4 líneas, citando la ley y con tono protector.`
-          },
-          { role: "user", content: mensajeUsuario }
-        ],
+        messages: messages,
         temperature: 0.3
       })
     })
