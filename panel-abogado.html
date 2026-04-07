@@ -467,7 +467,30 @@
       btn.textContent = isOff ? '📷' : '🚫';
       btn.style.background = isOff ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
     }
+    // ── INICIALIZACIÓN SECUENCIAL ──
+    async function iniciarPanelAbogado() {
+      try {
+        const { data: { user } } = await dbApp.auth.getUser();
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // Cargar el historial y el saldo inmediatamente
+        await cargarHistorial();
+
+        // Ahora sí, cargamos el Agente IA de forma segura
+        const scriptIA = document.createElement('script');
+        scriptIA.src = 'agente-ia.js';
+        document.body.appendChild(scriptIA);
+        console.log("✅ Inicialización completa. Agente IA cargado.");
+
+      } catch (error) {
+        console.error("Error en la inicialización:", error);
+      }
+    }
+
+    // Arrancar el sistema
+    iniciarPanelAbogado();
   </script>
-  <script src="agente-ia.js"></script>
-</body>
 </html>
