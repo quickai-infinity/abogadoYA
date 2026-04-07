@@ -32,7 +32,6 @@
     .view.active { display: flex; flex-direction: column; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* SOS BUTTON */
     .sos-container { text-align: center; margin-top: 0.5rem; width: 100%; }
     .sos-btn { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff6b6b, var(--red-emergency), #dc2626); border: 8px solid rgba(239, 68, 68, 0.15); color: white; font-size: 2rem; font-weight: 900; box-shadow: 0 0 60px rgba(239, 68, 68, 0.3); cursor: pointer; transition: 0.2s; margin: 0 auto; display: flex; align-items: center; justify-content: center; flex-direction: column; -webkit-tap-highlight-color: transparent; }
     .sos-btn:active { transform: scale(0.92); }
@@ -45,10 +44,8 @@
     .action-card p { font-size: 0.6rem; font-weight: 700; color: #94A3B8; }
     .action-card.active p { color: var(--white); }
 
-    /* GPS STATUS */
     .gps-status { margin-top: 1rem; padding: 0.6rem 1rem; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 10px; font-size: 0.7rem; color: var(--green-active); text-align: center; display: none; }
 
-    /* CHAT */
     #chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
     .msg { padding: 12px 16px; border-radius: 18px; font-size: 0.85rem; max-width: 85%; line-height: 1.4; }
     .msg.bot { background: var(--navy-light); align-self: flex-start; border-bottom-left-radius: 2px; }
@@ -57,7 +54,6 @@
     .chat-input { flex: 1; background: none; border: none; color: white; outline: none; font-size: 0.85rem; font-family: inherit; }
     .btn-send { background: var(--blue-trust); border: none; color: white; width: 35px; height: 35px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; }
 
-    /* PERFIL */
     .profile-section { width: 100%; }
     .profile-header { text-align: center; margin-bottom: 1.5rem; }
     .profile-avatar { width: 60px; height: 60px; background: linear-gradient(135deg, var(--blue-trust), #60A5FA); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 0.5rem; }
@@ -68,7 +64,6 @@
     .btn-save { width: 100%; background: var(--blue-trust); color: white; border: none; padding: 0.9rem; border-radius: 12px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.9rem; margin-top: 0.5rem; }
     .btn-save:active { transform: scale(0.98); }
 
-    /* MIC ACTIVE */
     @keyframes pulse-red {
       0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
       70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
@@ -76,10 +71,8 @@
     }
     .mic-active { background-color: var(--red-emergency) !important; animation: pulse-red 1.2s infinite !important; }
 
-    /* LOADER */
     #loader { position: fixed; inset: 0; background: var(--navy); display: flex; align-items: center; justify-content: center; z-index: 3000; font-weight: 800; font-size: 1rem; }
 
-    /* TOAST */
     .toast { position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%) translateY(100px); padding: 0.7rem 1.2rem; border-radius: 12px; font-weight: 700; font-size: 0.8rem; z-index: 9999; transition: transform 0.3s; white-space: nowrap; }
     .toast.show { transform: translateX(-50%) translateY(0); }
     .toast.success { background: var(--green-active); color: var(--navy); }
@@ -212,11 +205,7 @@
         }
       } catch (e) { console.error(e); }
       document.getElementById('loader').style.display = 'none';
-      
-      // Pedir GPS al cargar
       requestGPS();
-      
-      // Si no tiene contacto de emergencia, mostrar aviso
       if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
         setTimeout(() => {
           showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
@@ -235,25 +224,16 @@
 
     // ── GPS ──
     function requestGPS() {
-      if (!navigator.geolocation) {
-        console.log('GPS no disponible');
-        return;
-      }
-      
+      if (!navigator.geolocation) return;
       navigator.geolocation.watchPosition(
         (pos) => {
-          userLocation = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy
-          };
+          userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
           const gpsDiv = document.getElementById('gps-status');
           gpsDiv.style.display = 'block';
           gpsDiv.innerHTML = '📍 GPS activo — Precisión: ' + Math.round(pos.coords.accuracy) + 'm';
           document.getElementById('ac-gps').classList.add('active');
         },
         (err) => {
-          console.log('GPS error:', err.message);
           const gpsDiv = document.getElementById('gps-status');
           gpsDiv.style.display = 'block';
           gpsDiv.style.borderColor = 'rgba(239,68,68,0.3)';
@@ -267,7 +247,6 @@
 
     // ── EMERGENCIA ──
     async function triggerEmergency() {
-      // Verificar que tenga contacto de emergencia
       if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
         showToast('⚠️ Primero guarda un contacto de emergencia en Perfil', 'error');
         showView('perfil', document.querySelectorAll('.nav-item')[2]);
@@ -280,39 +259,34 @@
       
       try {
         const { data: { user } } = await dbApp.auth.getUser();
-      
-        // 1 y 2. Pedimos la sala y el token a nuestro servidor seguro (Edge Function)
-        const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
-        
-        if (salaError) throw new Error('Error al conectar con el servidor de salas');
-        if (salaData.error) throw new Error(salaData.error);
 
-        // Asignamos las variables para que el resto de tu código siga funcionando igual
+        // 1 y 2. Pedimos la sala y el token a nuestro servidor seguro
+        const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
+        if (salaError || !salaData) throw new Error('Error al conectar con el servidor de salas');
+
         const room = { url: salaData.url };
         const tokenData = { token: salaData.token };
         
-        // 3. Guardar emergencia con ubicación en Supabase
+        // 3. Guardar emergencia con ubicación
         const insertData = {
           ciudadano_id: user.id,
           sala_webrtc_url: room.url,
           estado: 'buscando'
         };
         
-        let mapsLink = null;
+        let mapsLink = 'Ubicación no disponible';
         if (userLocation) {
-          insertData.ubicacion_texto = 'Lat: ' + userLocation.lat.toFixed(5) + ', Lng: ' + userLocation.lng.toFixed(5);
+          insertData.ubicacion_texto = `Lat: ${userLocation.lat.toFixed(5)}, Lng: ${userLocation.lng.toFixed(5)}`;
           insertData.ubicacion_lat = userLocation.lat;
           insertData.ubicacion_lng = userLocation.lng;
-          mapsLink = 'https://maps.google.com/?q=' + userLocation.lat + ',' + userLocation.lng;
+          mapsLink = `https://www.google.com/maps?q=${userLocation.lat},${userLocation.lng}`;
           insertData.maps_link = mapsLink;
         }
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // 4. ENVIAR WEBHOOK A N8N
+        // 4. Webhook n8n
         try {
-          const mapsLink = userLocation ? `https://www.google.com/maps?q=${userLocation.lat},${userLocation.lng}` : 'Ubicación no disponible';
-          
           const webhookData = {
             tipo: 'emergencia',
             nombre: userProfile?.nombre_completo || 'Usuario',
@@ -321,7 +295,6 @@
             timestamp: new Date().toISOString()
           };
 
-          // Le damos a n8n exactamente 800ms para disparar el mensaje antes de cambiar de página
           await Promise.race([
             fetch('https://panel1.quickai.agency/webhook/abogadoya/emergencia', {
               method: 'POST',
@@ -330,27 +303,21 @@
             }),
             new Promise(resolve => setTimeout(resolve, 800))
           ]);
-          console.log('✅ Webhook n8n disparado con éxito');
-        } catch(e) {
-          console.log('⚠️ Webhook ignorado o fallido:', e);
-        }
+          console.log('✅ Webhook n8n disparado');
+        } catch(e) { console.log('⚠️ Webhook ignorado'); }
 
         // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
         showToast('🔴 Emergencia activada');
         
-        // 6. ABRIR VIDEOLLAMADA (SOLUCIÓN ROBUSTA PARA MÓVILES)
+        // 6. Abrir Videollamada
         const dailyUrl = room.url + '?t=' + tokenData.token;
-        
-        // Detectar si es un teléfono o tablet (iOS / Android)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
         if (isMobile) {
-          // EN MÓVILES: Redirigimos a la interfaz nativa de Daily. 
-          // Esto garantiza acceso al micrófono y cámara, evadiendo los bloqueos de iframe.
           window.location.href = dailyUrl;
         } else {
-          // EN COMPUTADORAS (Desktop): Usamos el iframe con permisos integrados.
           const videoOverlay = document.createElement('div');
           videoOverlay.id = 'video-overlay';
           videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
@@ -361,9 +328,8 @@
             </div>
             <div id="daily-user-frame" style="flex:1;"></div>
             <div style="display:flex; gap:1.5rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.8); z-index:10;">
-              <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer; box-shadow:0 0 20px rgba(239,68,68,0.4);">📞</button>
-            </div>
-          `;
+              <button onclick="endUserCall()" style="width:60px; height:60px; border-radius:50%; border:none; background:#EF4444; color:white; font-size:1.5rem; cursor:pointer;">📞</button>
+            </div>`;
           document.body.appendChild(videoOverlay);
           
           const frame = window.DailyIframe.createFrame(document.getElementById('daily-user-frame'), {
@@ -371,33 +337,29 @@
             iframeStyle: { width: '100%', height: '100%', border: '0' }
           });
           window._dailyFrame = frame;
-          
           await frame.join({ url: room.url, token: tokenData.token });
         }
         
-        // 7. Grabación local de respaldo (Solo audio para no causar conflicto de cámaras)
         startHiddenRecording();
         document.addEventListener('visibilitychange', panicTrigger);
         
       } catch (e) { 
-        console.error(e);
         showToast('Error: ' + e.message, 'error');
         btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
         btn.style.pointerEvents = 'auto';
       }
     }
 
-    // ── GRABACIÓN LOCAL ──
+    // ── AUXILIARES ──
     async function startHiddenRecording() {
       try {
-        // SOLUCIÓN: video en false para no bloquear la cámara en móviles.
         const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         localRecorder = new MediaRecorder(stream);
         localRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
         localRecorder.start(1000);
         isRecording = true;
         document.getElementById('ac-nube').classList.add('active');
-      } catch (e) { console.error("Grabación local backup fallida", e); }
+      } catch (e) {}
     }
 
     async function panicTrigger() {
@@ -406,12 +368,10 @@
         localRecorder.stop();
         const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
         const { data: { user } } = await dbApp.auth.getUser();
-        const path = user.id + '/arrebato_' + Date.now() + '.webm';
-        await dbApp.storage.from('evidencias').upload(path, videoBlob);
+        await dbApp.storage.from('evidencias').upload(`${user.id}/arrebato_${Date.now()}.webm`, videoBlob);
       }
     }
 
-    // ── GUARDAR CONTACTOS ──
     async function saveEmergencyContact() {
       try {
         const { data: { user } } = await dbApp.auth.getUser();
@@ -421,112 +381,60 @@
           contacto_emergencia_2_nombre: document.getElementById('contact-name-2').value,
           contacto_emergencia_2_telefono: document.getElementById('contact-tel-2').value
         };
-        
-        const { error } = await dbApp.from('usuarios').update(updates).eq('auth_id', user.id);
-        if (error) throw error;
-        
+        await dbApp.from('usuarios').update(updates).eq('auth_id', user.id);
         userProfile = { ...userProfile, ...updates };
         showToast('✅ Contactos guardados');
-      } catch (e) {
-        showToast('Error al guardar', 'error');
-        console.error(e);
-      }
+      } catch (e) { showToast('Error al guardar', 'error'); }
     }
-
-    // ── IA CHAT ──
-    const LEYES_OFFLINE = [
-      { palabrasClave: ["grabar", "video", "telefono", "celular"], ley: "📍 RES. 109: Tienes derecho a grabar el procedimiento policial. Nadie puede quitarte el teléfono." },
-      { palabrasClave: ["revisar", "maleta", "carro", "vehiculo", "requisa"], ley: "📍 COPP Art. 191: La revisión requiere motivos fundados y 2 testigos que NO sean policías." },
-      { palabrasClave: ["cedula", "licencia", "documentos"], ley: "📍 No pueden retener tus documentos originales. Solo pueden verificarlos." },
-      { palabrasClave: ["detener", "detenido", "arrestar", "preso"], ley: "📍 Art. 44 CRBV: Solo puedes ser detenido con orden judicial o en flagrancia. Tienes derecho a llamar a un abogado." },
-      { palabrasClave: ["alcabala", "punto de control", "reten"], ley: "📍 Gaceta 42.458: Los funcionarios deben identificarse, no pueden estar en zonas oscuras y puedes grabar todo." },
-      { palabrasClave: ["dolar", "dolares", "divisa", "efectivo"], ley: "📍 Desde 2018 es LEGAL portar dólares en Venezuela. Ningún funcionario puede decomisarlos." }
-    ];
 
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const container = document.getElementById('chat-messages');
       const text = input.value.trim();
       if (!text) return;
-
       const userDiv = document.createElement('div');
       userDiv.className = 'msg user';
       userDiv.innerText = text;
       container.appendChild(userDiv);
       input.value = '';
-
       const botDiv = document.createElement('div');
       botDiv.className = 'msg bot';
       botDiv.innerHTML = "Analizando... ⏳";
       container.appendChild(botDiv);
       container.scrollTop = container.scrollHeight;
-
       try {
         const { data, error } = await dbApp.functions.invoke('agente-ia', { body: { mensajeUsuario: text } });
-        if (error || !data || !data.choices) throw new Error("Offline");
         botDiv.innerHTML = data.choices[0].message.content.replace(/\n/g, '<br>');
       } catch (err) {
-        const textLower = text.toLowerCase();
-        let res = LEYES_OFFLINE.find(l => l.palabrasClave.some(p => textLower.includes(p)));
-        botDiv.innerHTML = res ? "⚖️ " + res.ley : "⚠️ <b>Modo Offline:</b> Mantén la calma. Graba todo, exige testigos, no firmes nada sin abogado.";
-        botDiv.style.borderLeft = "3px solid #F59E0B";
+        botDiv.innerHTML = "⚠️ <b>Modo Offline:</b> Graba todo, exige testigos, no firmes nada.";
       }
       container.scrollTop = container.scrollHeight;
     }
 
-    // ── DICTADO POR VOZ ──
     function startDictation() {
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!Recognition) return showToast('Tu navegador no soporta voz', 'error');
-      
+      if (!Recognition) return;
       const rec = new Recognition();
       rec.lang = 'es-VE';
-      const micBtn = document.getElementById('btn-mic');
-
-      rec.onstart = () => {
-        micBtn.classList.add('mic-active');
-        document.getElementById('chat-input').placeholder = "Escuchando...";
-      };
-      rec.onresult = (e) => {
-        document.getElementById('chat-input').value = e.results[0][0].transcript;
-        sendMessage();
-      };
-      rec.onend = () => {
-        micBtn.classList.remove('mic-active');
-        document.getElementById('chat-input').placeholder = "Dime qué sucede...";
-      };
-      rec.onerror = () => micBtn.classList.remove('mic-active');
+      rec.onstart = () => document.getElementById('btn-mic').classList.add('mic-active');
+      rec.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendMessage(); };
+      rec.onend = () => document.getElementById('btn-mic').classList.remove('mic-active');
       rec.start();
     }
 
-    // ── FINALIZAR LLAMADA USUARIO ──
     function endUserCall() {
       if (!confirm('¿Finalizar la emergencia?')) return;
-      
-      if (window._dailyFrame) {
-        try { window._dailyFrame.leave(); window._dailyFrame.destroy(); } catch(e) {}
-        window._dailyFrame = null;
-      }
-      
-      if (localRecorder && isRecording) {
-        try { localRecorder.stop(); } catch(e) {}
-        isRecording = false;
-      }
-      
+      if (window._dailyFrame) { window._dailyFrame.leave(); window._dailyFrame.destroy(); window._dailyFrame = null; }
+      if (localRecorder && isRecording) { localRecorder.stop(); isRecording = false; }
       const overlay = document.getElementById('video-overlay');
       if (overlay) overlay.remove();
-      
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = 'SOS<div class="sos-sub">TOCA PARA EMERGENCIA</div>';
       btn.style.pointerEvents = 'auto';
-      
       document.querySelectorAll('.action-card').forEach(c => c.classList.remove('active'));
-      showToast('✅ Emergencia finalizada');
     }
 
-    // ── LOGOUT ──
     function logout() { dbApp.auth.signOut().then(() => window.location.href = 'index.html'); }
-
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     checkUser();
   </script>
