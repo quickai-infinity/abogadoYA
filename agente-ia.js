@@ -125,7 +125,7 @@
 
     // Intentar IA de forma SEGURA a través de Supabase
     try {
-      const supabaseClient = window.dbApp || window.dbClient; 
+      const supabaseClient = window.dbApp;
       if (!supabaseClient) throw new Error("Supabase no inicializado");
 
       const { data, error } = await supabaseClient.functions.invoke('agente-ia', {
