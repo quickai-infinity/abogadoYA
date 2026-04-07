@@ -183,17 +183,16 @@
       }
     }
 
-    // ── HISTORIAL Y GANANCIAS ──
+   // ── HISTORIAL Y GANANCIAS ──
     async function cargarHistorial() {
       const contenedor = document.getElementById('lista-historial');
       if(!contenedor) return;
       contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400);">Cargando registros...</p>';
-      
+
       try {
         const { data: { user } } = await dbApp.auth.getUser();
         if(!user) return;
-        
-        // 1. Buscar las emergencias atendidas por este abogado
+
         const { data, error } = await dbApp.from('emergencias_activas')
           .select('*')
           .eq('abogado_id', user.id)
@@ -201,18 +200,15 @@
 
         if (error) throw error;
 
-        // 2. NUEVA CONEXIÓN: Buscar el saldo real en la tabla saldos_abogados
         const { data: billeteraAbogado } = await dbApp.from('saldos_abogados')
           .select('saldo_acumulado')
           .eq('abogado_id', user.id)
           .maybeSingle();
 
-        // 3. Variables de monetización
         const gananciasReales = billeteraAbogado ? billeteraAbogado.saldo_acumulado : 0.00;
         const totalCasos = data.length;
-        const tarifaPorCaso = 15.00; // Solo se usa para mostrar de a cuánto fue cada ingreso en la lista visual
+        const tarifaPorCaso = 15.00; 
 
-        // 4. Actualizamos la pantalla visual superior
         document.getElementById('total-ganancias').innerText = `$${parseFloat(gananciasReales).toFixed(2)}`;
         document.getElementById('total-casos').innerText = totalCasos;
 
@@ -221,13 +217,12 @@
           return;
         }
 
-        // 5. Construimos la lista visual de casos abajo
         let html = '';
         data.forEach(caso => {
           const fechaObj = new Date(caso.created_at);
           const fecha = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', {hour: '2-digit', minute:'2-digit'});
           const idCorto = caso.ciudadano_id ? caso.ciudadano_id.substring(0,6).toUpperCase() : 'DESC';
-          
+
           html += `
             <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
               <div>
@@ -239,13 +234,6 @@
             </div>
           `;
         });
-        contenedor.innerHTML = html;
-
-      } catch (e) {
-        console.error(e);
-        contenedor.innerHTML = '<p style="color:var(--red-emergency); text-align:center;">Error al cargar historial.</p>';
-      }
-    }
         contenedor.innerHTML = html;
 
       } catch (e) {
