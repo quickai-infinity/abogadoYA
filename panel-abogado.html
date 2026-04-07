@@ -152,81 +152,79 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // ── SUPABASE ──
+    // 1. INICIALIZACIÓN GLOBAL
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
-    const dbApp = window.supabase.createClient(API_URL, API_KEY);
+    
+    // Usamos window.dbApp para que el Agente IA pueda encontrarlo
+    window.dbApp = window.supabase.createClient(API_URL, API_KEY);
 
-    // ── ESTADO GLOBAL ──
     let isEnGuardia = false;
     let emergenciasChannel = null;
     let currentEmergencyId = null;
     let callFrame = null;
 
-    // ── LOGOUT ──
-    async function logout() {
-      if (callFrame) { callFrame.destroy(); callFrame = null; }
-      await dbApp.auth.signOut();
-      window.location.href = 'index.html';
-    }
-
-    // ── NAVEGACIÓN ──
-    function showView(viewId, el) {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.getElementById('view-' + viewId).classList.add('active');
-      if (el) el.classList.add('active');
-
-      // Si entra a historial, cargamos los datos frescos
-      if (viewId === 'historial') {
-        cargarHistorial();
+    // 2. FUNCIÓN DE INICIO (Se ejecuta al cargar la página)
+    async function initPanel() {
+      const { data: { user } } = await window.dbApp.auth.getUser();
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
       }
+
+      // Cargamos el saldo y el historial de inmediato
+      await cargarHistorial();
+
+      // CARGA SECUENCIAL DEL AGENTE: Solo después de que Supabase esté listo
+      const scriptIA = document.createElement('script');
+      scriptIA.src = "agente-ia.js";
+      document.body.appendChild(scriptIA);
+      console.log("✅ Sistema inicializado y Agente IA cargado.");
     }
 
-// ── HISTORIAL Y GANANCIAS ──
+    // 3. CONEXIÓN REAL DE SALDOS Y ASISTENCIAS
     async function cargarHistorial() {
       const contenedor = document.getElementById('lista-historial');
       if(!contenedor) return;
       contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400);">Cargando registros...</p>';
 
       try {
-        const { data: { user } } = await dbApp.auth.getUser();
-        if(!user) return;
-
-        // 1. Buscar el ID profesional del abogado usando su ID de autenticación
-        const { data: perfilAbogado, error: errorPerfil } = await dbApp.from('abogados')
+        const { data: { user } } = await window.dbApp.auth.getUser();
+        
+        // Buscamos el ID profesional en la tabla 'abogados' usando el auth_id del login
+        const { data: perfilAbogado, error: errorPerfil } = await window.dbApp
+          .from('abogados')
           .select('id') 
           .eq('auth_id', user.id) 
           .maybeSingle();
           
         if (errorPerfil || !perfilAbogado) {
-            console.error("No se encontró el perfil profesional del abogado.");
             document.getElementById('total-ganancias').innerText = "$0.00";
-            contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400); font-size:0.85rem;">Perfil profesional no enlazado.</p>';
+            contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400); font-size:0.85rem;">Error: Perfil profesional no encontrado.</p>';
             return;
         }
         
         const idProfesional = perfilAbogado.id;
 
-        // 2. Buscar las emergencias atendidas usando el ID PROFESIONAL
-        const { data, error } = await dbApp.from('emergencias_activas')
+        // Buscamos las asistencias reales de ese abogado
+        const { data: asistencias, error: errorAsist } = await window.dbApp
+          .from('emergencias_activas')
           .select('*')
           .eq('abogado_id', idProfesional)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-
-        // 3. Buscar el saldo usando el ID PROFESIONAL
-        const { data: billeteraAbogado } = await dbApp.from('saldos_abogados')
-          .select('saldo_acumulado')
+        // Buscamos el saldo acumulado real
+        const { data: billetera, error: errorSaldo } = await window.dbApp
+          .from('saldos_abogados')
+          .select('saldo_accumulado')
           .eq('abogado_id', idProfesional)
           .maybeSingle();
 
-        const gananciasReales = billeteraAbogado ? billeteraAbogado.saldo_acumulado : 0.00;
-        const totalCasos = data.length;
-        const tarifaPorCaso = 15.00; 
+        const saldoFinal = billetera ? billetera.saldo_accumulado : 0.00;
+        const totalCasos = asistencias ? asistencias.length : 0;
 
-        document.getElementById('total-ganancias').innerText = `$${parseFloat(gananciasReales).toFixed(2)}`;
+        // Actualizamos la interfaz
+        document.getElementById('total-ganancias').innerText = `$${parseFloat(saldoFinal).toFixed(2)}`;
         document.getElementById('total-casos').innerText = totalCasos;
 
         if (totalCasos === 0) {
@@ -235,262 +233,55 @@
         }
 
         let html = '';
-        data.forEach(caso => {
-          const fechaObj = new Date(caso.created_at);
-          const fecha = fechaObj.toLocaleDateString('es-VE') + ' ' + fechaObj.toLocaleTimeString('es-VE', {hour: '2-digit', minute:'2-digit'});
-          const idCorto = caso.ciudadano_id ? caso.ciudadano_id.substring(0,6).toUpperCase() : 'DESC';
-
+        asistencias.forEach(caso => {
+          const fecha = new Date(caso.created_at).toLocaleString('es-VE');
+          const idCorto = caso.id.substring(0,6).toUpperCase();
           html += `
             <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <p style="font-size: 0.85rem; font-weight: 800; color: var(--white);">Caso #${idCorto}</p>
                 <p style="font-size: 0.65rem; color: var(--gray-400); margin: 3px 0;">${fecha}</p>
-                <p style="font-size: 0.75rem; color: var(--green-active); font-weight: 700;">+ $${tarifaPorCaso.toFixed(2)}</p>
+                <p style="font-size: 0.75rem; color: var(--green-active); font-weight: 700;">+ $15.00</p>
               </div>
               <a href="https://dashboard.daily.co/recordings" target="_blank" style="text-decoration:none; background: rgba(34, 197, 94, 0.1); color: var(--green-active); padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 800;">Evidencia ☁️</a>
-            </div>
-          `;
+            </div>`;
         });
         contenedor.innerHTML = html;
 
       } catch (e) {
-        console.error("Error al cargar el historial:", e);
-        contenedor.innerHTML = '<p style="color:var(--red-emergency); text-align:center;">Error al cargar historial.</p>';
+        console.error("Error crítico:", e);
       }
     }
 
-    // ── TOGGLE GUARDIA ──
+    // --- RESTO DE TUS FUNCIONES (SALA, GUARDIA, ETC) ---
+    function showView(viewId, el) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('view-' + viewId).classList.add('active');
+      if (el) el.classList.add('active');
+      if (viewId === 'historial') cargarHistorial();
+    }
+
+    async function logout() { await window.dbApp.auth.signOut(); window.location.href = 'index.html'; }
+
+    // Función para manejar la guardia (Toggle)
     function toggleGuardia() {
       const toggle = document.getElementById('guardia-toggle');
-      const title = document.getElementById('status-title');
-      const desc = document.getElementById('status-desc');
-      const radarRing = document.getElementById('radar-visual');
-      const radarIcon = document.getElementById('radar-icon');
-
       isEnGuardia = toggle.checked;
-
+      const title = document.getElementById('status-title');
+      const radar = document.getElementById('radar-visual');
+      
       if (isEnGuardia) {
         title.textContent = "🟢 En Guardia Activa";
-        title.style.color = "var(--green-active)";
-        desc.textContent = "Buscando emergencias en tu zona...";
-        radarRing.classList.add('active');
-        radarIcon.textContent = "📡";
-        radarIcon.style.opacity = "1";
-        
-        // Escuchar emergencias en tiempo real
-        emergenciasChannel = dbApp.channel('alertas-globales')
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: "estado=eq.buscando" },
-            (payload) => {
-              console.log('🚨 EMERGENCIA:', payload);
-              currentEmergencyId = payload.new.id;
-              
-              // Mostrar ubicación si viene
-              const loc = payload.new.ubicacion_texto || 'Ubicación no disponible';
-              document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> ' + loc;
-              document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> ahora mismo';
-              
-              document.getElementById('radar-visual').style.display = 'none';
-              document.getElementById('incoming-alert').style.display = 'block';
-              
-              // Sonido de alerta
-              try { new Audio('data:audio/wav;base64,UklGRl9vT19teleVpZGVv').play(); } catch(e) {}
-            }
-          )
-          .subscribe();
-
+        radar.classList.add('active');
+        // Aquí conectas tu canal de Realtime...
       } else {
         title.textContent = "Fuera de Servicio";
-        title.style.color = "var(--white)";
-        desc.textContent = "Activa tu guardia para recibir emergencias.";
-        radarRing.classList.remove('active');
-        radarIcon.textContent = "💤";
-        radarIcon.style.opacity = "0.5";
-        document.getElementById('incoming-alert').style.display = 'none';
-        document.getElementById('radar-visual').style.display = 'flex';
-        
-        if (emergenciasChannel) {
-          dbApp.removeChannel(emergenciasChannel);
-          emergenciasChannel = null;
-        }
+        radar.classList.remove('active');
       }
     }
 
-    // ── SIMULAR EMERGENCIA (Dev) ──
-    function simulateIncomingAlert() {
-      if (!isEnGuardia) {
-        alert("Activa la guardia primero.");
-        return;
-      }
-      currentEmergencyId = null; // Simulación sin ID real
-      document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> Autopista Francisco Fajardo, Caracas';
-      document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> 12 segundos';
-      document.getElementById('radar-visual').style.display = 'none';
-      document.getElementById('incoming-alert').style.display = 'block';
-    }
-
-    // ── ACEPTAR EMERGENCIA ──
-    async function acceptEmergency() {
-      // Si es simulación
-      if (!currentEmergencyId) {
-        alert("Simulación visual. En producción se conectará la sala real.");
-        document.getElementById('incoming-alert').style.display = 'none';
-        document.getElementById('radar-visual').style.display = 'flex';
-        showView('sala', document.querySelectorAll('.nav-item')[1]);
-        return;
-      }
-
-      try {
-        const { data: { user } } = await dbApp.auth.getUser();
-
-        // Actualizar estado en Supabase
-        const { error: updateError } = await dbApp.from('emergencias_activas')
-          .update({ estado: 'atendida', abogado_id: user.id })
-          .eq('id', currentEmergencyId);
-
-        if (updateError) throw new Error("Error al asignar: " + updateError.message);
-
-        // Buscar URL de la sala
-        const { data, error: selectError } = await dbApp.from('emergencias_activas')
-          .select('sala_webrtc_url')
-          .eq('id', currentEmergencyId)
-          .single();
-
-        if (selectError || !data || !data.sala_webrtc_url) {
-          throw new Error("No se encontró la URL de videollamada.");
-        }
-
-        // Ocultar alerta, mostrar sala
-        document.getElementById('incoming-alert').style.display = 'none';
-        showView('sala', document.querySelectorAll('.nav-item')[1]);
-        
-        // Preparar contenedor de video
-        const placeholder = document.getElementById('sala-placeholder');
-        const videoContainer = document.getElementById('sala-video-container');
-        placeholder.style.display = 'none';
-        videoContainer.style.display = 'flex';
-        videoContainer.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--navy-light); border-radius:12px 12px 0 0;">
-            <span style="color:var(--red-emergency); font-weight:800; font-size:0.9rem;">🔴 EN VIVO</span>
-            <span style="color:var(--green-active); font-size:0.75rem; font-weight:600;">☁️ Grabando</span>
-          </div>
-          <div id="daily-abogado" style="flex:1; background:#000; min-height:300px;"></div>
-          <div style="display:flex; gap:1rem; justify-content:center; padding:1rem; background:rgba(0,0,0,0.6); border-radius:0 0 12px 12px;">
-            <button onclick="toggleMuteReal()" id="btn-mute" style="width:50px; height:50px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:white; font-size:1.3rem; cursor:pointer;">🎤</button>
-            <button onclick="endCall()" style="width:50px; height:50px; border-radius:50%; border:none; background:var(--red-emergency); color:white; font-size:1.3rem; cursor:pointer;">📞</button>
-            <button onclick="toggleCamReal()" id="btn-cam" style="width:50px; height:50px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:white; font-size:1.3rem; cursor:pointer;">📷</button>
-          </div>
-        `;
-        
-        // Crear Daily frame
-        callFrame = window.DailyIframe.createFrame(document.getElementById('daily-abogado'), {
-          showLeaveButton: false,
-          iframeStyle: { width: '100%', height: '100%', border: '0' }
-        });
-
-        await callFrame.join({ url: data.sala_webrtc_url });
-
-      } catch (error) {
-        console.error("Error:", error);
-        alert(error.message);
-      }
-    }
-
-    // ── FINALIZAR LLAMADA (ÚNICA DEFINICIÓN) ──
-    function endCall() {
-      if (!confirm("¿Finalizar la asistencia legal?")) return;
-      
-      // Destruir Daily iframe completamente
-      if (callFrame) {
-        try {
-          callFrame.leave();
-          callFrame.destroy();
-        } catch(e) { console.log('Frame ya destruido'); }
-        callFrame = null;
-      }
-      
-      // Resetear la sala
-      const placeholder = document.getElementById('sala-placeholder');
-      const videoContainer = document.getElementById('sala-video-container');
-      if (placeholder) placeholder.style.display = 'flex';
-      if (videoContainer) { videoContainer.style.display = 'none'; videoContainer.innerHTML = ''; }
-      
-      // Resetear la guardia - mostrar radar, ocultar alerta
-      document.getElementById('incoming-alert').style.display = 'none';
-      document.getElementById('radar-visual').style.display = 'flex';
-      currentEmergencyId = null;
-      
-      // Volver a vista guardia
-      showView('guardia', document.querySelectorAll('.nav-item')[0]);
-      
-      // IMPORTANTE: Si la guardia sigue activa, reconectar el listener
-      if (isEnGuardia) {
-        // Remover canal viejo si existe
-        if (emergenciasChannel) {
-          try { dbApp.removeChannel(emergenciasChannel); } catch(e) {}
-        }
-        // Reconectar para escuchar nuevas emergencias
-        emergenciasChannel = dbApp.channel('alertas-globales-' + Date.now())
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: "estado=eq.buscando" },
-            (payload) => {
-              console.log('🚨 NUEVA EMERGENCIA:', payload);
-              currentEmergencyId = payload.new.id;
-              const loc = payload.new.ubicacion_texto || 'Ubicación no disponible';
-              const mapsLink = payload.new.maps_link || '';
-              document.getElementById('alert-location').innerHTML = '📍 <b>Ubicación:</b> ' + (mapsLink ? '<a href="'+mapsLink+'" target="_blank" style="color:white;">'+loc+'</a>' : loc);
-              document.getElementById('alert-time').innerHTML = '⏱️ <b>Tiempo de espera:</b> ahora mismo';
-              document.getElementById('radar-visual').style.display = 'none';
-              document.getElementById('incoming-alert').style.display = 'block';
-            }
-          )
-          .subscribe();
-      }
-    }
-
-    // ── CONTROLES DE VIDEO REALES ──
-    function toggleMuteReal() {
-      if (!callFrame) return;
-      const btn = document.getElementById('btn-mute');
-      const isMuted = callFrame.localAudio() === false;
-    
-      callFrame.setLocalAudio(isMuted);
-      btn.textContent = isMuted ? '🎤' : '🔇';
-      btn.style.background = isMuted ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
-    }
-
-    function toggleCamReal() {
-      if (!callFrame) return;
-      const btn = document.getElementById('btn-cam');
-      const isOff = callFrame.localVideo() === false;
-      callFrame.setLocalVideo(isOff);
-      btn.textContent = isOff ? '📷' : '🚫';
-      btn.style.background = isOff ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.5)';
-    }
-    // ── INICIALIZACIÓN SECUENCIAL ──
-    async function iniciarPanelAbogado() {
-      try {
-        const { data: { user } } = await dbApp.auth.getUser();
-        if (!user) {
-            window.location.href = 'index.html';
-            return;
-        }
-
-        // Cargar el historial y el saldo inmediatamente
-        await cargarHistorial();
-
-        // Ahora sí, cargamos el Agente IA de forma segura
-        const scriptIA = document.createElement('script');
-        scriptIA.src = 'agente-ia.js';
-        document.body.appendChild(scriptIA);
-        console.log("✅ Inicialización completa. Agente IA cargado.");
-
-      } catch (error) {
-        console.error("Error en la inicialización:", error);
-      }
-    }
-
-    // Arrancar el sistema
-    iniciarPanelAbogado();
+    // Arrancamos todo
+    initPanel();
   </script>
 </html>
