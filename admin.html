@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Dios - AbogadoYA</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { background: #0A1628; color: white; font-family: sans-serif; padding: 2rem; }
+        .caja { background: #1e293b; padding: 1.5rem; border-radius: 8px; margin-bottom: 20px; max-width: 500px; }
+        input { padding: 10px; width: 80%; margin-bottom: 10px; border-radius: 4px; border: none; }
+        button { background: #10B981; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button.abogado { background: #3b82f6; }
+    </style>
+</head>
+<body>
+
+    <h1>⚙️ Panel de Control - AbogadoYA</h1>
+    <p id="status">Verificando acceso...</p>
+
+    <div class="caja" id="panelCiudadanos" style="display:none;">
+        <h3>💰 Recargar Saldo a Ciudadano</h3>
+        <p style="font-size: 0.8rem; color: #94a3b8;">Simula que te hicieron un Pago Móvil y ponles el saldo aquí.</p>
+        <input type="text" id="idCiudadano" placeholder="ID del Usuario (UUID) o Correo">
+        <input type="number" id="montoCiudadano" placeholder="Monto en USD (Ej. 15)">
+        <button onclick="recargarCiudadano()">Inyectar Saldo</button>
+    </div>
+
+    <div class="caja" id="panelAbogados" style="display:none;">
+        <h3>⚖️ Pagar a Abogado</h3>
+        <p style="font-size: 0.8rem; color: #94a3b8;">Súmale las ganancias por un caso atendido.</p>
+        <input type="text" id="idAbogado" placeholder="ID del Abogado (UUID)">
+        <input type="number" id="montoAbogado" placeholder="Monto en USD (Ej. 10)">
+        <button class="abogado" onclick="pagarAbogado()">Sumar Ganancia</button>
+    </div>
+
+    <script>
+        // PON TUS LLAVES AQUÍ
+        const API_URL = 'https://TU_PROYECTO.supabase.co';
+        const API_KEY = 'TU_ANON_KEY';
+        const dbAdmin = window.supabase.createClient(API_URL, API_KEY);
+
+        async function verificarAdmin() {
+            const { data: { user } } = await dbAdmin.auth.getUser();
+            if (!user) return window.location.href = 'index.html';
+
+            // Verificamos si tiene el rol de admin
+            const { data: perfil } = await dbAdmin.from('usuarios').select('rol').eq('auth_id', user.id).single();
+            
+            if (perfil && perfil.rol === 'admin') {
+                document.getElementById('status').innerText = '✅ Acceso concedido: Administrador';
+                document.getElementById('panelCiudadanos').style.display = 'block';
+                document.getElementById('panelAbogados').style.display = 'block';
+            } else {
+                document.body.innerHTML = '<h1 style="color:red; text-align:center;">Acceso Denegado</h1>';
+            }
+        }
+        verificarAdmin();
+
+        // Función para recargar al ciudadano usando la función SQL segura que creamos antes
+        async function recargarCiudadano() {
+            const id = document.getElementById('idCiudadano').value;
+            const monto = parseFloat(document.getElementById('montoCiudadano').value);
+            
+            const { error } = await dbAdmin.rpc('sumar_saldo_usuario', { p_usuario_id: id, p_monto: monto });
+            
+            if(error) alert("Error: " + error.message);
+            else alert("✅ Saldo inyectado correctamente. El usuario ya lo verá en su app.");
+        }
+
+        // Función para pagar al abogado
+        async function pagarAbogado() {
+            const id = document.getElementById('idAbogado').value;
+            const monto = parseFloat(document.getElementById('montoAbogado').value);
+            
+            const { error } = await dbAdmin.rpc('sumar_pago_abogado', { p_abogado_id: id, p_monto: monto });
+            
+            if(error) alert("Error: " + error.message);
+            else alert("✅ Pago sumado al panel del abogado.");
+        }
+    </script>
+</body>
+</html>
