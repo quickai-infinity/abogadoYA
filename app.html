@@ -309,13 +309,15 @@
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         
-        // / 4. ENVIAR WEBHOOK A N8N (Solución: Micro-pausa garantizada)
+        // 4. ENVIAR WEBHOOK A N8N
         try {
+          const mapsLink = userLocation ? `https://www.google.com/maps?q=${userLocation.lat},${userLocation.lng}` : 'Ubicación no disponible';
+          
           const webhookData = {
             tipo: 'emergencia',
-            nombre: userProfile.nombre_completo,
-            telefono_contacto: userProfile.contacto_emergencia_1_telefono,
-            maps_link: mapsLink || 'Ubicación no disponible',
+            nombre: userProfile?.nombre_completo || 'Usuario',
+            telefono_contacto: userProfile?.contacto_emergencia_1_telefono || 'No configurado',
+            maps_link: mapsLink,
             timestamp: new Date().toISOString()
           };
 
@@ -330,8 +332,9 @@
           ]);
           console.log('✅ Webhook n8n disparado con éxito');
         } catch(e) {
-          console.log('⚠️ Webhook ignorado por timeout:', e);
+          console.log('⚠️ Webhook ignorado o fallido:', e);
         }
+
         // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
@@ -342,7 +345,6 @@
         
         // Detectar si es un teléfono o tablet (iOS / Android)
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
         if (isMobile) {
           // EN MÓVILES: Redirigimos a la interfaz nativa de Daily. 
           // Esto garantiza acceso al micrófono y cámara, evadiendo los bloqueos de iframe.
