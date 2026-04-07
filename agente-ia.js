@@ -7,11 +7,8 @@
 (function() {
   'use strict';
 
-  // ── GROQ CONFIG (Gratis — Llama 3.3 70B) ──
-  // Pon tu key aquí. Este archivo va en .gitignore
-  const GROQ_KEY = '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';  // ← Pega tu API key de console.groq.com
-  const GROQ_MODEL = 'llama-3.3-70b-versatile';
-  const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  // ── CONFIGURACIÓN SEGURA ──
+  // Las llaves ahora viven en Supabase para evitar el robo de saldo.
 
   // ── DETECTAR TIPO DE USUARIO ──
   const IS_ABOGADO = window.location.pathname.includes('panel-abogado');
@@ -56,7 +53,7 @@
     { k: ["comunicacion","telefono intervenido","privacidad","espiar"], t: "⚖️ CRBV Art. 48: Comunicaciones privadas INVIOLABLES. Solo un juez puede autorizar intervenciones. Interceptar sin orden = delito." },
 
     // TRÁNSITO
-    { k: ["transito","multa","infraccion","boleta","ticket"], t: "⚖️ LTT Art. 169-180: Multas deben ser por escrito con número de boleta. Funcionario identificado. 15 días hábiles para apelar." },
+    { k: ["transito","multa","infraccion","boleta","ticket"], t: "⚖️ LTT Art. 169-180: Multas deben ser por escrito con número de boleta. Funcionarios identificados. 15 días hábiles para apelar." },
     { k: ["licencia vencida","renovar licencia"], t: "⚖️ LTT Art. 92: Licencia vencida NO autoriza retención del vehículo si tienes demás documentos en regla." },
     { k: ["grua","remolcar","llevarse el carro","retencion vehiculo"], t: "⚖️ LTT Art. 184: Remolque solo si: 1) Obstaculiza tránsito. 2) Hecho punible. 3) Faltan documentos obligatorios. Deben darte acta." },
     { k: ["seguro","poliza","rcv","responsabilidad civil"], t: "⚖️ LTT Art. 76: Seguro RCV es OBLIGATORIO. Sin seguro vigente = multa." },
@@ -76,34 +73,6 @@
     { k: ["hola","buenos dias","buenas tardes","buenas noches","ayuda","que hago"], t: "🛡️ Soy tu Agente Legal IA. Cuéntame qué pasa y te oriento con las leyes que te protegen. Si es emergencia, usa el botón SOS." }
   ];
 
-  // ── SYSTEM PROMPTS ──
-  const PROMPT_CIUDADANO = `Eres el Agente Legal de AbogadoYA, app de defensa ciudadana en Venezuela.
-
-REGLAS:
-1. Español venezolano, claro y breve (máx 150 palabras).
-2. Cita artículos: CRBV, COPP, LTT, LOPNNA, etc.
-3. En emergencia policial, da pasos concretos.
-4. Recuerda siempre el derecho a GRABAR.
-5. Si no conoces una ley, di "consulta con abogado" pero orienta.
-6. NUNCA inventes artículos.
-7. Ante abuso: grabar, pedir identificación, exigir testigos, no firmar sin abogado.
-8. Si hay peligro inmediato, recomienda botón SOS.
-
-LEYES CLAVE: CRBV Art.44(libertad), Art.46(tortura), Art.47(domicilio), Art.49(defensa), Art.57(expresión). COPP Art.191-193(requisas). LOSPCPNB Art.65(identificación). Gaceta 42.458(alcabalas). LTT Art.169-180(tránsito).`;
-
-  const PROMPT_ABOGADO = `Eres el Asistente Legal IA de AbogadoYA para ABOGADOS profesionales de Venezuela.
-
-REGLAS:
-1. Español técnico-jurídico, conciso (máx 200 palabras).
-2. Cita artículos con precisión: CRBV, COPP, CP, LTT, LOPNNA, LOSPCPNB.
-3. Incluye jurisprudencia del TSJ cuando aplique.
-4. Orienta sobre estrategias de defensa y líneas argumentales.
-5. NUNCA inventes artículos.
-6. Incluye plazos procesales cuando sea relevante.
-7. Ofrece estructura de escritos si se solicita.
-
-LEYES: CRBV(Art.19-129,253-272), COPP, CP, LTT, LOPNNA, LOSPCPNB, Ley contra Tortura 2013, Ley Orgánica Derecho Mujeres.`;
-
   // ── BUSCAR EN BASE OFFLINE ──
   function searchOffline(text) {
     const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -120,9 +89,6 @@ LEYES: CRBV(Art.19-129,253-272), COPP, CP, LTT, LOPNNA, LOSPCPNB, Ley contra Tor
   }
 
   // ── REEMPLAZAR sendMessage ORIGINAL ──
-  // Guardamos referencia por si acaso
-  const _originalSendMessage = window.sendMessage;
-
   window.sendMessage = async function() {
     const input = document.getElementById('chat-input');
     const container = document.getElementById('chat-messages');
@@ -157,26 +123,21 @@ LEYES: CRBV(Art.19-129,253-272), COPP, CP, LTT, LOPNNA, LOSPCPNB, Ley contra Tor
     chatHistory.push({ role: 'user', content: text });
     if (chatHistory.length > 6) chatHistory = chatHistory.slice(-6);
 
-    // Intentar Groq (online)
+    // Intentar IA de forma SEGURA a través de Supabase
     try {
-      if (!GROQ_KEY) throw new Error('No key');
+      const supabaseClient = window.dbApp || window.dbClient; 
+      if (!supabaseClient) throw new Error("Supabase no inicializado");
 
-      const resp = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [
-            { role: 'system', content: IS_ABOGADO ? PROMPT_ABOGADO : PROMPT_CIUDADANO },
-            ...chatHistory
-          ],
-          max_tokens: IS_ABOGADO ? 600 : 500,
-          temperature: 0.3
-        })
+      const { data, error } = await supabaseClient.functions.invoke('agente-ia', {
+        body: { 
+          chatHistory: chatHistory,
+          isAbogado: IS_ABOGADO
+        }
       });
 
-      if (!resp.ok) throw new Error('API ' + resp.status);
-      const data = await resp.json();
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
       const reply = data.choices[0].message.content;
 
       botDiv.innerHTML = reply.replace(/\n/g, '<br>');

@@ -280,37 +280,16 @@
       
       try {
         const { data: { user } } = await dbApp.auth.getUser();
-        const DAILY_KEY = '';
+      
+        // 1 y 2. Pedimos la sala y el token a nuestro servidor seguro (Edge Function)
+        const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
         
-        // 1. Crear sala con grabación
-        const roomResp = await fetch('https://api.daily.co/v1/rooms', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            properties: { 
-              enable_recording: "cloud",
-              enable_chat: false,
-              start_audio_off: false,
-              start_video_off: false
-            } 
-          })
-        });
-        const room = await roomResp.json();
-        if (!room.url) throw new Error('No se pudo crear la sala');
+        if (salaError) throw new Error('Error al conectar con el servidor de salas');
+        if (salaData.error) throw new Error(salaData.error);
 
-        // 2. Token con auto-grabación
-        const tokenResp = await fetch('https://api.daily.co/v1/meeting-tokens', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + DAILY_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            properties: { 
-              room_name: room.name, 
-              is_owner: true, 
-              start_cloud_recording: true
-            } 
-          })
-        });
-        const tokenData = await tokenResp.json();
+        // Asignamos las variables para que el resto de tu código siga funcionando igual
+        const room = { url: salaData.url };
+        const tokenData = { token: salaData.token };
         
         // 3. Guardar emergencia con ubicación en Supabase
         const insertData = {
