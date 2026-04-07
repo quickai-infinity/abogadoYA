@@ -152,37 +152,40 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // 1. INICIALIZACIÓN GLOBAL
+    // 1. CONFIGURACIÓN GLOBAL (window.dbApp para que el Agente IA lo vea)
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     
-    // Usamos window.dbApp para que el Agente IA pueda encontrarlo
+    // IMPORTANTE: Definir como window.dbApp
     window.dbApp = window.supabase.createClient(API_URL, API_KEY);
 
     let isEnGuardia = false;
-    let emergenciasChannel = null;
-    let currentEmergencyId = null;
     let callFrame = null;
 
-    // 2. FUNCIÓN DE INICIO (Se ejecuta al cargar la página)
-    async function initPanel() {
-      const { data: { user } } = await window.dbApp.auth.getUser();
-      if (!user) {
-        window.location.href = 'index.html';
-        return;
+    // 2. INICIALIZACIÓN SECUENCIAL
+    async function iniciarPanelAbogado() {
+      try {
+        const { data: { user } } = await window.dbApp.auth.getUser();
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // Cargamos el saldo y el historial de inmediato
+        await cargarHistorial();
+
+        // CARGA EL AGENTE IA: Solo ahora que window.dbApp existe de verdad
+        const scriptIA = document.createElement('script');
+        scriptIA.src = 'agente-ia.js';
+        document.body.appendChild(scriptIA);
+        console.log("✅ Inicialización completa. Agente IA cargado.");
+
+      } catch (error) {
+        console.error("Error en la inicialización:", error);
       }
-
-      // Cargamos el saldo y el historial de inmediato
-      await cargarHistorial();
-
-      // CARGA SECUENCIAL DEL AGENTE: Solo después de que Supabase esté listo
-      const scriptIA = document.createElement('script');
-      scriptIA.src = "agente-ia.js";
-      document.body.appendChild(scriptIA);
-      console.log("✅ Sistema inicializado y Agente IA cargado.");
     }
 
-    // 3. CONEXIÓN REAL DE SALDOS Y ASISTENCIAS
+    // 3. CARGAR SALDO REAL (CON CORRECCIÓN DE COLUMNA)
     async function cargarHistorial() {
       const contenedor = document.getElementById('lista-historial');
       if(!contenedor) return;
@@ -190,41 +193,40 @@
 
       try {
         const { data: { user } } = await window.dbApp.auth.getUser();
-        
-        // Buscamos el ID profesional en la tabla 'abogados' usando el auth_id del login
-        const { data: perfilAbogado, error: errorPerfil } = await window.dbApp
+
+        // Paso A: Buscamos el perfil profesional del abogado
+        const { data: perfilAbogado } = await window.dbApp
           .from('abogados')
           .select('id') 
           .eq('auth_id', user.id) 
           .maybeSingle();
           
-        if (errorPerfil || !perfilAbogado) {
-            document.getElementById('total-ganancias').innerText = "$0.00";
-            contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400); font-size:0.85rem;">Error: Perfil profesional no encontrado.</p>';
+        if (!perfilAbogado) {
+            console.error("No se encontró perfil profesional para este auth_id");
             return;
         }
         
-        const idProfesional = perfilAbogado.id;
+        const idPro = perfilAbogado.id;
 
-        // Buscamos las asistencias reales de ese abogado
-        const { data: asistencias, error: errorAsist } = await window.dbApp
+        // Paso B: Traer historial de emergencias
+        const { data: emergencias } = await window.dbApp
           .from('emergencias_activas')
           .select('*')
-          .eq('abogado_id', idProfesional)
+          .eq('abogado_id', idPro)
           .order('created_at', { ascending: false });
 
-        // Buscamos el saldo acumulado real
-        const { data: billetera, error: errorSaldo } = await window.dbApp
+        // Paso C: Traer saldo real (CORREGIDO: saldo_acumulado)
+        const { data: billetera } = await window.dbApp
           .from('saldos_abogados')
-          .select('saldo_accumulado')
-          .eq('abogado_id', idProfesional)
+          .select('saldo_acumulado') // <-- Una sola 'c'
+          .eq('abogado_id', idPro)
           .maybeSingle();
 
-        const saldoFinal = billetera ? billetera.saldo_accumulado : 0.00;
-        const totalCasos = asistencias ? asistencias.length : 0;
+        const ganancias = billetera ? billetera.saldo_acumulado : 0.00;
+        const totalCasos = emergencias ? emergencias.length : 0;
 
-        // Actualizamos la interfaz
-        document.getElementById('total-ganancias').innerText = `$${parseFloat(saldoFinal).toFixed(2)}`;
+        // Actualizar UI
+        document.getElementById('total-ganancias').innerText = `$${parseFloat(ganancias).toFixed(2)}`;
         document.getElementById('total-casos').innerText = totalCasos;
 
         if (totalCasos === 0) {
@@ -233,8 +235,8 @@
         }
 
         let html = '';
-        asistencias.forEach(caso => {
-          const fecha = new Date(caso.created_at).toLocaleString('es-VE');
+        emergencias.forEach(caso => {
+          const fecha = new Date(caso.created_at).toLocaleString();
           const idCorto = caso.id.substring(0,6).toUpperCase();
           html += `
             <div style="background: var(--navy-light); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
@@ -249,11 +251,11 @@
         contenedor.innerHTML = html;
 
       } catch (e) {
-        console.error("Error crítico:", e);
+        console.error("Error cargando historial:", e);
       }
     }
 
-    // --- RESTO DE TUS FUNCIONES (SALA, GUARDIA, ETC) ---
+    // --- FUNCIONES DE NAVEGACIÓN Y GUARDIA ---
     function showView(viewId, el) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -262,26 +264,16 @@
       if (viewId === 'historial') cargarHistorial();
     }
 
-    async function logout() { await window.dbApp.auth.signOut(); window.location.href = 'index.html'; }
-
-    // Función para manejar la guardia (Toggle)
     function toggleGuardia() {
-      const toggle = document.getElementById('guardia-toggle');
-      isEnGuardia = toggle.checked;
-      const title = document.getElementById('status-title');
-      const radar = document.getElementById('radar-visual');
-      
-      if (isEnGuardia) {
-        title.textContent = "🟢 En Guardia Activa";
-        radar.classList.add('active');
-        // Aquí conectas tu canal de Realtime...
-      } else {
-        title.textContent = "Fuera de Servicio";
-        radar.classList.remove('active');
-      }
+        const toggle = document.getElementById('guardia-toggle');
+        isEnGuardia = toggle.checked;
+        document.getElementById('status-title').textContent = isEnGuardia ? "🟢 En Guardia Activa" : "Fuera de Servicio";
+        document.getElementById('radar-visual').classList.toggle('active', isEnGuardia);
     }
 
-    // Arrancamos todo
-    initPanel();
+    async function logout() { await window.dbApp.auth.signOut(); window.location.href = 'index.html'; }
+
+    // ARRANCAR SISTEMA
+    iniciarPanelAbogado();
   </script>
 </html>
