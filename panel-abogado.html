@@ -183,7 +183,7 @@
       }
     }
 
-   // ── HISTORIAL Y GANANCIAS ──
+// ── HISTORIAL Y GANANCIAS ──
     async function cargarHistorial() {
       const contenedor = document.getElementById('lista-historial');
       if(!contenedor) return;
@@ -193,16 +193,33 @@
         const { data: { user } } = await dbApp.auth.getUser();
         if(!user) return;
 
+        // 1. Buscar el ID profesional del abogado usando su ID de autenticación
+        const { data: perfilAbogado, error: errorPerfil } = await dbApp.from('abogados')
+          .select('id') 
+          .eq('auth_id', user.id) 
+          .maybeSingle();
+          
+        if (errorPerfil || !perfilAbogado) {
+            console.error("No se encontró el perfil profesional del abogado.");
+            document.getElementById('total-ganancias').innerText = "$0.00";
+            contenedor.innerHTML = '<p style="text-align:center; color:var(--gray-400); font-size:0.85rem;">Perfil profesional no enlazado.</p>';
+            return;
+        }
+        
+        const idProfesional = perfilAbogado.id;
+
+        // 2. Buscar las emergencias atendidas usando el ID PROFESIONAL
         const { data, error } = await dbApp.from('emergencias_activas')
           .select('*')
-          .eq('abogado_id', user.id)
+          .eq('abogado_id', idProfesional)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
+        // 3. Buscar el saldo usando el ID PROFESIONAL
         const { data: billeteraAbogado } = await dbApp.from('saldos_abogados')
           .select('saldo_acumulado')
-          .eq('abogado_id', user.id)
+          .eq('abogado_id', idProfesional)
           .maybeSingle();
 
         const gananciasReales = billeteraAbogado ? billeteraAbogado.saldo_acumulado : 0.00;
@@ -237,7 +254,7 @@
         contenedor.innerHTML = html;
 
       } catch (e) {
-        console.error(e);
+        console.error("Error al cargar el historial:", e);
         contenedor.innerHTML = '<p style="color:var(--red-emergency); text-align:center;">Error al cargar historial.</p>';
       }
     }
