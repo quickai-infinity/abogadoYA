@@ -1141,6 +1141,22 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <script>
+    async function verificarBiometria() {
+  // Comprobar si el dispositivo soporta biometría
+  if (window.PublicKeyCredential) {
+    const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (disponible) {
+      try {
+        // Esto lanza el FaceID / Huella del sistema
+        // Nota: En producción, esto se vincula a un desafío enviado desde Supabase
+        console.log("Invocando biometría...");
+        // Aquí iría la lógica de WebAuthn para validar la identidad
+      } catch (e) {
+        console.error("Error en biometría:", e);
+      }
+    }
+  }
+}
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     
