@@ -81,17 +81,15 @@
 
   <main class="main-content">
     
-    <div id="view-guardia" class="view active">
-      <div class="status-card">
-        <h2 style="font-size: 1.2rem;" id="status-title">Fuera de Servicio</h2>
-        <p style="color: var(--gray-400); font-size: 0.8rem; margin-top: 5px;" id="status-desc">Activa tu guardia para recibir emergencias.</p>
-        <div class="toggle-container">
-          <label class="switch">
-            <input type="checkbox" id="guardia-toggle" onchange="toggleGuardia()">
-            <span class="slider"></span>
-          </label>
+    <div class="status-card">
+    <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+        <label style="font-size: 0.7rem; color: var(--gold); font-weight: 800;">MI TARIFA POR SESIÓN ($)</label>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 5px;">
+            <input type="number" id="input-tarifa" value="15.00" style="background: rgba(0,0,0,0.3); border: 1px solid var(--gold); color: white; border-radius: 8px; padding: 5px; width: 80px; text-align: center;">
+            <button onclick="guardarTarifa()" style="background: var(--gold); color: var(--navy); border: none; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; cursor: pointer;">FIJAR</button>
         </div>
-      </div>
+    </div>
+    </div>
 
       <div class="radar-container">
         <div class="radar-ring" id="radar-visual">
