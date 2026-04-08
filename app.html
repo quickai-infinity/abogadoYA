@@ -323,9 +323,6 @@ async function checkUser() {
         
         await dbApp.from('emergencias_activas').insert([insertData]);
         // ... (código previo del insertData y GPS)
-        
-        // Esta es la línea 323 de tu archivo original
-        await dbApp.from('emergencias_activas').insert([insertData]);
 
         // ── INICIO DEL ESCUCHADOR (PEGAR AQUÍ) ──
         const { data: registroEmergencia } = await dbApp.from('emergencias_activas')
@@ -339,20 +336,42 @@ async function checkUser() {
         if (registroEmergencia) {
             const emergencyId = registroEmergencia.id;
             const canalRespuesta = dbApp.channel(`respuesta-${emergencyId}`)
-                .on('postgres_changes', { 
-                    event: 'UPDATE', 
-                    schema: 'public', 
-                    table: 'emergencias_activas', 
-                    filter: `id=eq.${emergencyId}` 
-                }, async (payload) => {
-                    if (payload.new.estado === 'atendida') {
-                        const tarifa = payload.new.tarifa_aplicada || 15.00;
-                        showToast(`✅ Abogado conectado. Tarifa: $${tarifa}`, 'success');
-                        btn.innerHTML = `🔴<div class="sos-sub">SESIÓN: $${tarifa}</div>`;
-                        dbApp.removeChannel(canalRespuesta);
+            .on('postgres_changes', { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'emergencias_activas', 
+                filter: `id=eq.${emergencyId}` 
+            }, async (payload) => {
+                
+                // CASO A: El abogado propone un precio
+                if (payload.new.estado === 'propuesta_enviada') {
+                    const tarifa = payload.new.tarifa_aplicada;
+                    
+                    if (confirm(`⚖️ Abogado conectado.\nTarifa por asistencia: $${tarifa}\n\n¿Aceptas el cargo a tu saldo para iniciar?`)) {
+                        // Si acepta, cambiamos a 'atendida'
+                        await dbApp.from('emergencias_activas')
+                            .update({ estado: 'atendida' })
+                            .eq('id', emergencyId);
+                    } else {
+                        // Si rechaza, cancelamos la solicitud
+                        await dbApp.from('emergencias_activas')
+                            .update({ estado: 'cancelada' })
+                            .eq('id', emergencyId);
+                        location.reload(); 
                     }
-                })
-                .subscribe();
+                }
+
+                // CASO B: La sesión está oficialmente activa (Video On)
+                if (payload.new.estado === 'atendida') {
+                    const tarifaFinal = payload.new.tarifa_aplicada || 15.00;
+                    showToast(`✅ Sesión iniciada ($${tarifaFinal})`, 'success');
+                    btn.innerHTML = `🔴<div class="sos-sub">SESIÓN: $${tarifaFinal}</div>`;
+                    
+                    // El código de videollamada que sigue abajo se activará automáticamente
+                    dbApp.removeChannel(canalRespuesta);
+                }
+            })
+            .subscribe();
         }
         try {
           const webhookData = {

@@ -55,14 +55,29 @@
     .chat-input { flex: 1; background: none; border: none; color: white; outline: none; font-size: 0.85rem; font-family: inherit; }
     .btn-send { background: var(--blue-trust); border: none; color: white; width: 35px; height: 35px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; }
   </style>
+  <div id="modal-ajustes" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:3000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--navy-light); border:1px solid var(--gold); padding:2rem; border-radius:16px; width:100%; max-width:350px; position:relative;">
+        <button onclick="cerrarAjustes()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✕</button>
+        <h3 style="color:var(--gold); margin-bottom:1.5rem; text-align:center;">Configuración</h3>
+        
+        <label style="font-size:0.7rem; color:var(--gray-400); display:block; margin-bottom:8px;">TARIFA POR SESIÓN ($)</label>
+        <input type="number" id="input-tarifa" value="15.00" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:10px; font-size:1.2rem; text-align:center; margin-bottom:1.5rem;">
+        
+        <button onclick="guardarTarifa()" style="width:100%; background:var(--gold); color:var(--navy); border:none; padding:12px; border-radius:10px; font-weight:800; cursor:pointer;">GUARDAR CAMBIOS</button>
+    </div>
+</div>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 </head>
 <body>
 
   <header>
     <div class="logo-small">Abogado<span>YA</span> <span style="font-size: 0.6rem; color: #94A3B8; font-weight: normal;">| PANEL</span></div>
-    <button class="btn-exit" onclick="logout()">Salir</button>
-  </header>
+    
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <button onclick="abrirAjustes()" style="background:none; border:none; font-size: 1.2rem; cursor:pointer; padding: 5px;">⚙️</button>
+        <button class="btn-exit" onclick="logout()">Salir</button>
+    </div>
+</header>
 
   <nav class="nav-top">
     <a class="nav-item active" onclick="showView('guardia', this)">
@@ -82,14 +97,15 @@
   <main class="main-content">
     
     <div class="status-card">
-    <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-        <label style="font-size: 0.7rem; color: var(--gold); font-weight: 800;">MI TARIFA POR SESIÓN ($)</label>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 5px;">
-            <input type="number" id="input-tarifa" value="15.00" style="background: rgba(0,0,0,0.3); border: 1px solid var(--gold); color: white; border-radius: 8px; padding: 5px; width: 80px; text-align: center;">
-            <button onclick="guardarTarifa()" style="background: var(--gold); color: var(--navy); border: none; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; cursor: pointer;">FIJAR</button>
-        </div>
+    <h2 style="font-size: 1.2rem;" id="status-title">Fuera de Servicio</h2>
+    <p style="color: var(--gray-400); font-size: 0.8rem; margin-top: 5px;" id="status-desc">Activa tu guardia para recibir emergencias.</p>
+    <div class="toggle-container">
+        <label class="switch">
+            <input type="checkbox" id="guardia-toggle" onchange="toggleGuardia()">
+            <span class="slider"></span>
+        </label>
     </div>
-    </div>
+</div>
 
       <div class="radar-container">
         <div class="radar-ring" id="radar-visual">
@@ -230,29 +246,27 @@
     }
 
     // 4. ACEPTAR LA EMERGENCIA Y CONECTAR VIDEO
-    async function acceptEmergency() {
-        if (!currentEmergencyId || !miIdProfesional) return;
-        
-        // Actualizamos la emergencia en Supabase para decir que nosotros la atendemos
-        const { data, error } = await window.dbApp.from('emergencias_activas')
-            .update({ estado: 'atendida', abogado_id: miIdProfesional })
-            .eq('id', currentEmergencyId)
-            .select().single();
+   async function acceptEmergency() {
+    if (!currentEmergencyId || !miIdProfesional) return;
+    
+    // Obtenemos la tarifa que guardaste en el modal de configuración
+    const tarifaConfigurada = document.getElementById('input-tarifa').value || 15.00;
 
-        if (data && data.sala_webrtc_url) {
-            // Cambiamos a la pestaña de SALA
-            showView('sala', document.querySelectorAll('.nav-item')[2]);
-            document.getElementById('sala-placeholder').style.display = 'none';
-            const container = document.getElementById('sala-video-container');
-            container.style.display = 'flex';
-            container.innerHTML = `<div id="daily-frame" style="width:100%; height:450px; border-radius:12px; overflow:hidden;"></div>
-                                   <button onclick="location.reload()" style="background:var(--red-emergency); color:white; padding:12px; border:none; border-radius:12px; font-weight:800; margin-top:10px; cursor:pointer;">FINALIZAR SESIÓN</button>`;
-            
-            // Iniciamos la llamada de video real
-            callFrame = window.DailyIframe.createFrame(document.getElementById('daily-frame'));
-            await callFrame.join({ url: data.sala_webrtc_url });
-        }
+    const { data, error } = await window.dbApp.from('emergencias_activas')
+        .update({ 
+            estado: 'propuesta_enviada', // Estado intermedio para pedir permiso
+            abogado_id: miIdProfesional,
+            tarifa_aplicada: tarifaConfigurada 
+        })
+        .eq('id', currentEmergencyId);
+
+    if (!error) {
+        showToast("Propuesta de $" + tarifaConfigurada + " enviada. Esperando al cliente...");
+        // Ocultamos la alerta para esperar confirmación
+        document.getElementById('incoming-alert').style.display = 'none';
+        document.getElementById('radar-visual').style.display = 'flex';
     }
+}
 
     // 5. TU LÓGICA DE HISTORIAL, CHAT Y NAVEGACIÓN (Se mantiene intacta)
     async function cargarListaCasos(idPro) {
@@ -303,5 +317,47 @@
 
     // ARRANCAR TODO
     iniciarTodo();
+    // Abrir y cerrar la ventana de ajustes
+function abrirAjustes() { document.getElementById('modal-ajustes').style.display = 'flex'; }
+function cerrarAjustes() { document.getElementById('modal-ajustes').style.display = 'none'; }
+
+// Guardar la tarifa en el perfil del abogado (tabla abogados)
+async function guardarTarifa() {
+    const monto = document.getElementById('input-tarifa').value;
+    const { error } = await window.dbApp
+        .from('abogados')
+        .update({ tarifa_sesion: monto })
+        .eq('id', miIdProfesional);
+
+    if(!error) {
+        alert("✅ Tarifa actualizada correctamente.");
+        cerrarAjustes();
+    } else {
+        alert("❌ Error al guardar: " + error.message);
+    }
+}
+
+// Modificamos la función iniciarTodo para que cargue tu tarifa guardada
+async function iniciarTodo() {
+    try {
+        const { data: { user } } = await window.dbApp.auth.getUser();
+        if (!user) { window.location.href = 'index.html'; return; }
+
+        const { data: perfil } = await window.dbApp.from('abogados').select('*').eq('auth_id', user.id).maybeSingle();
+
+        if (perfil) {
+            miIdProfesional = perfil.id;
+            // Cargamos tu tarifa guardada en el input del modal
+            document.getElementById('input-tarifa').value = perfil.tarifa_sesion || 15.00;
+            
+            const { data: billetera } = await window.dbApp.from('saldos_abogados').select('saldo_acumulado').eq('abogado_id', perfil.id).maybeSingle();
+            if (billetera) {
+                document.getElementById('total-ganancias').innerText = `$${parseFloat(billetera.saldo_acumulado).toFixed(2)}`;
+            }
+            cargarListaCasos(miIdProfesional);
+        }
+        // ... (resto de tu lógica de n8n)
+    } catch (err) { console.error(err); }
+}
   </script>
 </html>
