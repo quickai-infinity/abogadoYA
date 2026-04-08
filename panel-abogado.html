@@ -162,56 +162,41 @@
     let isEnGuardia = false;
 
     // 2. FUNCIÓN DE INICIO (ESTRICTAMENTE SECUENCIAL)
-    async function iniciarTodo() {
-        try {
-            const { data: { user } } = await window.dbApp.auth.getUser();
-            if (!user) { window.location.href = 'index.html'; return; }
+   async function iniciarTodo() {
+    try {
+        const { data: { user } } = await window.dbApp.auth.getUser();
+        if (!user) { window.location.href = 'index.html'; return; }
 
-            // PASO A: Buscamos el ID PROFESIONAL usando el AUTH_ID
-            const { data: abogado } = await window.dbApp
-                .from('abogados')
-                .select('id')
-                .eq('auth_id', user.id)
-                .maybeSingle();
+        // 1. Buscamos quién es este usuario en la tabla profesional
+        const { data: perfil } = await window.dbApp
+            .from('abogados')
+            .select('id')
+            .eq('auth_id', user.id)
+            .single();
 
-            if (!abogado) {
-                console.error("No eres un abogado registrado en la tabla 'abogados'");
-                document.getElementById('lista-historial').innerHTML = "⚠️ Cuenta no vinculada como abogado profesional.";
-                return;
-            }
-
-            const idPro = abogado.id; // Este es el '1af97ff8...'
-
-            // PASO B: Cargar el Saldo Real (Columna: saldo_acumulado)
+        if (perfil) {
+            // 2. Con ese ID (el 1af9...), buscamos el saldo real
             const { data: billetera } = await window.dbApp
                 .from('saldos_abogados')
                 .select('saldo_acumulado')
-                .eq('abogado_id', idPro)
-                .maybeSingle();
+                .eq('abogado_id', perfil.id)
+                .single();
 
-            const totalAsistencias = await window.dbApp
-                .from('emergencias_activas')
-                .select('id', { count: 'exact' })
-                .eq('abogado_id', idPro);
-
-            // Actualizar Interfaz
-            const saldoFinal = billetera ? billetera.saldo_acumulado : 0.00;
-            document.getElementById('total-ganancias').innerText = `$${parseFloat(saldoFinal).toFixed(2)}`;
-            document.getElementById('total-casos').innerText = totalAsistencias.count || 0;
-
-            // Cargar historial visual...
-            await cargarListaCasos(idPro);
-
-            // PASO C: Cargar el Agente IA SOLO cuando ya todo lo anterior funciona
-            const scriptIA = document.createElement('script');
-            scriptIA.src = 'agente-ia.js';
-            document.body.appendChild(scriptIA);
-            console.log("✅ Conexión con el universo establecida. Agente cargado.");
-
-        } catch (err) {
-            console.error("Falla crítica de conexión:", err);
+            if (billetera) {
+                // Actualizamos el número naranja en la pantalla
+                document.getElementById('total-ganancias').innerText = `$${parseFloat(billetera.saldo_acumulado).toFixed(2)}`;
+            }
         }
+
+        // 3. Cargamos el Agente de n8n
+        const scriptIA = document.createElement('script');
+        scriptIA.src = 'agente-ia.js';
+        document.body.appendChild(scriptIA);
+
+    } catch (err) {
+        console.error("Error de sincronización:", err);
     }
+}
 
     async function cargarListaCasos(idPro) {
         const { data: casos } = await window.dbApp
