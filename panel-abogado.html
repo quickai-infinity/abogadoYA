@@ -172,7 +172,7 @@
             .from('abogados')
             .select('id')
             .eq('auth_id', user.id)
-            .single();
+            .maybeSingle();
 
         if (perfil) {
             // 2. Con ese ID (el 1af9...), buscamos el saldo real
