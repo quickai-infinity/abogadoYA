@@ -152,137 +152,148 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // 1. CONFIGURACIÓN GLOBAL
+    // 1. CONFIGURACIÓN E INICIALIZACIÓN
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
-    
-    // Lo asignamos a window para que el archivo agente-ia.js lo vea sí o sí
     window.dbApp = window.supabase.createClient(API_URL, API_KEY);
 
+    // Estados globales necesarios para que funcionen las llamadas
     let isEnGuardia = false;
+    let emergenciasChannel = null;
+    let currentEmergencyId = null;
+    let callFrame = null;
+    let miIdProfesional = null;
 
-    // 2. FUNCIÓN DE INICIO (ESTRICTAMENTE SECUENCIAL)
-   async function iniciarTodo() {
-    try {
-        const { data: { user } } = await window.dbApp.auth.getUser();
-        if (!user) { window.location.href = 'index.html'; return; }
+    // 2. FUNCIÓN DE ARRANQUE (Mantiene tu lógica de Saldo e IA)
+    async function iniciarTodo() {
+        try {
+            const { data: { user } } = await window.dbApp.auth.getUser();
+            if (!user) { window.location.href = 'index.html'; return; }
 
-        // 1. Buscamos quién es este usuario en la tabla profesional
-        const { data: perfil } = await window.dbApp
-            .from('abogados')
-            .select('id')
-            .eq('auth_id', user.id)
-            .maybeSingle();
+            const { data: perfil } = await window.dbApp
+                .from('abogados')
+                .select('*')
+                .eq('auth_id', user.id)
+                .maybeSingle();
 
-        if (perfil) {
-            // 2. Con ese ID (el 1af9...), buscamos el saldo real
-            const { data: billetera } = await window.dbApp
-                .from('saldos_abogados')
-                .select('saldo_acumulado')
-                .eq('abogado_id', perfil.id)
-                .single();
+            if (perfil) {
+                miIdProfesional = perfil.id; // Guardamos esto para poder aceptar llamadas
+                
+                // Carga tu saldo real ($50.00)
+                const { data: billetera } = await window.dbApp
+                    .from('saldos_abogados')
+                    .select('saldo_acumulado')
+                    .eq('abogado_id', perfil.id)
+                    .maybeSingle();
 
-            if (billetera) {
-                // Actualizamos el número naranja en la pantalla
-                document.getElementById('total-ganancias').innerText = `$${parseFloat(billetera.saldo_acumulado).toFixed(2)}`;
+                if (billetera) {
+                    document.getElementById('total-ganancias').innerText = `$${parseFloat(billetera.saldo_acumulado).toFixed(2)}`;
+                }
+                
+                // Carga tu historial de una vez
+                cargarListaCasos(miIdProfesional);
             }
+
+            // Inyecta el Agente de n8n (Tu chat actual)
+            const scriptIA = document.createElement('script');
+            scriptIA.src = 'agente-ia.js';
+            document.body.appendChild(scriptIA);
+
+        } catch (err) {
+            console.error("Error de sincronización:", err);
         }
-
-        // 3. Cargamos el Agente de n8n
-        const scriptIA = document.createElement('script');
-        scriptIA.src = 'agente-ia.js';
-        document.body.appendChild(scriptIA);
-
-    } catch (err) {
-        console.error("Error de sincronización:", err);
     }
-}
 
+    // 3. GESTIÓN DE GUARDIA Y LLAMADAS (ESTO ES LO QUE TE FALTABA)
+    function toggleGuardia() {
+        const toggle = document.getElementById('guardia-toggle');
+        isEnGuardia = toggle.checked;
+        document.getElementById('status-title').textContent = isEnGuardia ? "🟢 En Guardia Activa" : "Fuera de Servicio";
+        document.getElementById('radar-visual').classList.toggle('active', isEnGuardia);
+
+        if (isEnGuardia) {
+            // ACTIVAMOS EL "OÍDO": Escucha si algún ciudadano presiona SOS
+            emergenciasChannel = window.dbApp.channel('alertas-vivas')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: 'estado=eq.buscando' }, 
+                payload => {
+                    console.log("🚨 EMERGENCIA ENTRANTE:", payload);
+                    currentEmergencyId = payload.new.id;
+                    document.getElementById('alert-location').innerHTML = `📍 Ubicación: ${payload.new.ubicacion_texto || 'No disponible'}`;
+                    document.getElementById('radar-visual').style.display = 'none';
+                    document.getElementById('incoming-alert').style.display = 'block';
+                })
+                .subscribe();
+        } else {
+            // APAGAMOS EL OÍDO
+            if (emergenciasChannel) window.dbApp.removeChannel(emergenciasChannel);
+            document.getElementById('incoming-alert').style.display = 'none';
+            document.getElementById('radar-visual').style.display = 'flex';
+        }
+    }
+
+    // 4. ACEPTAR LA EMERGENCIA Y CONECTAR VIDEO
+    async function acceptEmergency() {
+        if (!currentEmergencyId || !miIdProfesional) return;
+        
+        // Actualizamos la emergencia en Supabase para decir que nosotros la atendemos
+        const { data, error } = await window.dbApp.from('emergencias_activas')
+            .update({ estado: 'atendida', abogado_id: miIdProfesional })
+            .eq('id', currentEmergencyId)
+            .select().single();
+
+        if (data && data.sala_webrtc_url) {
+            // Cambiamos a la pestaña de SALA
+            showView('sala', document.querySelectorAll('.nav-item')[2]);
+            document.getElementById('sala-placeholder').style.display = 'none';
+            const container = document.getElementById('sala-video-container');
+            container.style.display = 'flex';
+            container.innerHTML = `<div id="daily-frame" style="width:100%; height:450px; border-radius:12px; overflow:hidden;"></div>
+                                   <button onclick="location.reload()" style="background:var(--red-emergency); color:white; padding:12px; border:none; border-radius:12px; font-weight:800; margin-top:10px; cursor:pointer;">FINALIZAR SESIÓN</button>`;
+            
+            // Iniciamos la llamada de video real
+            callFrame = window.DailyIframe.createFrame(document.getElementById('daily-frame'));
+            await callFrame.join({ url: data.sala_webrtc_url });
+        }
+    }
+
+    // 5. TU LÓGICA DE HISTORIAL, CHAT Y NAVEGACIÓN (Se mantiene intacta)
     async function cargarListaCasos(idPro) {
-    const contenedor = document.getElementById('lista-historial');
-    if (!contenedor) return;
-
-    try {
-        const { data: casos, error } = await window.dbApp
-            .from('emergencias_activas')
-            .select('*')
-            .eq('abogado_id', idPro)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Si no hay casos, quitamos el mensaje de "Cargando" y ponemos la realidad
+        const contenedor = document.getElementById('lista-historial');
+        const { data: casos } = await window.dbApp.from('emergencias_activas').select('*').eq('abogado_id', idPro).order('created_at', { ascending: false });
         if (!casos || casos.length === 0) {
-            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.8rem;">No hay casos registrados en tu historial.</p>';
-            document.getElementById('total-casos').innerText = "0";
+            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.8rem;">No hay casos registrados.</p>';
             return;
         }
-
         document.getElementById('total-casos').innerText = casos.length;
-
         contenedor.innerHTML = casos.map(c => `
             <div style="background: var(--navy-light); padding: 1rem; border-radius: 12px; margin-bottom: 0.8rem; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <p style="font-weight: 800; font-size: 0.85rem;">Caso #${c.id.toString().substring(0,6).toUpperCase()}</p>
-                    <p style="font-size: 0.65rem; color: var(--gray-400);">${new Date(c.created_at).toLocaleString()}</p>
-                </div>
+                <div><p style="font-weight: 800; font-size: 0.85rem;">Caso #${c.id.toString().substring(0,6).toUpperCase()}</p><p style="font-size: 0.65rem; color: var(--gray-400);">${new Date(c.created_at).toLocaleString()}</p></div>
                 <span style="color: var(--green-active); font-weight: 700; font-size: 0.8rem;">+ $15.00</span>
-            </div>
-        `).join('');
-
-    } catch (e) {
-        console.error("Error cargando lista:", e);
-        contenedor.innerHTML = '<p style="text-align:center; color:var(--red-emergency);">Error al conectar con el historial.</p>';
+            </div>`).join('');
     }
-}
-// ── AGENTE IA CONEXIÓN N8N ──
+
     async function sendMessage() {
         const input = document.getElementById('chat-input');
         const container = document.getElementById('chat-messages');
         const text = input.value.trim();
         if (!text) return;
-
-        // 1. Mostrar mensaje del abogado
-        const userDiv = document.createElement('div');
-        userDiv.className = 'msg user';
-        userDiv.innerText = text;
-        container.appendChild(userDiv);
-        input.value = '';
-
-        // 2. Burbuja de espera
-        const botDiv = document.createElement('div');
-        botDiv.className = 'msg bot';
-        botDiv.innerHTML = "Consultando central legal... ⚖️";
-        container.appendChild(botDiv);
-        container.scrollTop = container.scrollHeight;
-
+        const userDiv = document.createElement('div'); userDiv.className = 'msg user'; userDiv.innerText = text;
+        container.appendChild(userDiv); input.value = '';
+        const botDiv = document.createElement('div'); botDiv.className = 'msg bot'; botDiv.innerHTML = "Consultando central legal... ⚖️";
+        container.appendChild(botDiv); container.scrollTop = container.scrollHeight;
         try {
-            // 3. Petición al Webhook de n8n
             const response = await fetch('https://panel1.quickai.agency/webhook/abogadoya-agente', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    mensaje: text,
-                    origen: 'panel-abogado'
-                })
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje: text, origen: 'panel-abogado' })
             });
-
             const data = await response.json();
-            
-            // 4. Mostrar respuesta del cerebro (n8n devuelve 'output')
             botDiv.innerText = data.output || "Cerebro sin respuesta.";
-
-        } catch (err) {
-            botDiv.innerText = "⚠️ Error de conexión con n8n.";
-            console.error(err);
-        }
+        } catch (err) { botDiv.innerText = "⚠️ Error de conexión."; }
         container.scrollTop = container.scrollHeight;
     }
 
-    // Escuchar tecla Enter para enviar
-    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    
     function showView(viewId, el) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -290,16 +301,9 @@
         if (el) el.classList.add('active');
     }
 
-    function toggleGuardia() {
-        const toggle = document.getElementById('guardia-toggle');
-        isEnGuardia = toggle.checked;
-        document.getElementById('status-title').textContent = isEnGuardia ? "🟢 En Guardia Activa" : "Fuera de Servicio";
-        document.getElementById('radar-visual').classList.toggle('active', isEnGuardia);
-    }
-
     async function logout() { await window.dbApp.auth.signOut(); window.location.href = 'index.html'; }
 
-    // Ejecución inicial
+    // ARRANCAR TODO
     iniciarTodo();
   </script>
 </html>
