@@ -428,28 +428,44 @@ async function checkUser() {
     }
 
     async function sendMessage() {
-      const input = document.getElementById('chat-input');
-      const container = document.getElementById('chat-messages');
-      const text = input.value.trim();
-      if (!text) return;
-      const userDiv = document.createElement('div');
-      userDiv.className = 'msg user';
-      userDiv.innerText = text;
-      container.appendChild(userDiv);
-      input.value = '';
-      const botDiv = document.createElement('div');
-      botDiv.className = 'msg bot';
-      botDiv.innerHTML = "Analizando... ⏳";
-      container.appendChild(botDiv);
-      container.scrollTop = container.scrollHeight;
-      try {
-        const { data, error } = await dbApp.functions.invoke('agente-ia', { body: { mensajeUsuario: text } });
-        botDiv.innerHTML = data.choices[0].message.content.replace(/\n/g, '<br>');
-      } catch (err) {
-        botDiv.innerHTML = "⚠️ <b>Modo Offline:</b> Graba todo, exige testigos, no firmes nada.";
-      }
-      container.scrollTop = container.scrollHeight;
+    const input = document.getElementById('chat-input');
+    const container = document.getElementById('chat-messages');
+    const text = input.value.trim();
+    if (!text) return;
+
+    // 1. Mostrar mensaje del usuario en pantalla
+    const userDiv = document.createElement('div');
+    userDiv.className = 'msg user';
+    userDiv.innerText = text;
+    container.appendChild(userDiv);
+    input.value = '';
+
+    // 2. Crear burbuja de espera del bot
+    const botDiv = document.createElement('div');
+    botDiv.className = 'msg bot';
+    botDiv.innerHTML = "Analizando leyes... ⚖️";
+    container.appendChild(botDiv);
+    container.scrollTop = container.scrollHeight;
+
+    try {
+        // 3. ENVIAR AL WEBHOOK DE N8N
+        const response = await fetch('https://panel1.quickai.agency/webhook/abogadoya-agente', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mensaje: text })
+        });
+
+        const data = await response.json();
+        
+        // 4. RECIBIR Y MOSTRAR (n8n entrega el texto en 'output')
+        botDiv.innerText = data.output || "No hay respuesta del cerebro.";
+
+    } catch (err) {
+        botDiv.innerText = "Error: No pude conectar con el cerebro legal.";
+        console.error(err);
     }
+    container.scrollTop = container.scrollHeight;
+}
 
     function startDictation() {
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
