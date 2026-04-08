@@ -322,8 +322,38 @@ async function checkUser() {
         }
         
         await dbApp.from('emergencias_activas').insert([insertData]);
+        // ... (código previo del insertData y GPS)
         
-        // 4. Webhook n8n
+        // Esta es la línea 323 de tu archivo original
+        await dbApp.from('emergencias_activas').insert([insertData]);
+
+        // ── INICIO DEL ESCUCHADOR (PEGAR AQUÍ) ──
+        const { data: registroEmergencia } = await dbApp.from('emergencias_activas')
+            .select('id')
+            .eq('ciudadano_id', user.id)
+            .eq('estado', 'buscando')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (registroEmergencia) {
+            const emergencyId = registroEmergencia.id;
+            const canalRespuesta = dbApp.channel(`respuesta-${emergencyId}`)
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'emergencias_activas', 
+                    filter: `id=eq.${emergencyId}` 
+                }, async (payload) => {
+                    if (payload.new.estado === 'atendida') {
+                        const tarifa = payload.new.tarifa_aplicada || 15.00;
+                        showToast(`✅ Abogado conectado. Tarifa: $${tarifa}`, 'success');
+                        btn.innerHTML = `🔴<div class="sos-sub">SESIÓN: $${tarifa}</div>`;
+                        dbApp.removeChannel(canalRespuesta);
+                    }
+                })
+                .subscribe();
+        }
         try {
           const webhookData = {
             tipo: 'emergencia',
