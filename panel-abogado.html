@@ -199,28 +199,42 @@
 }
 
     async function cargarListaCasos(idPro) {
-        const { data: casos } = await window.dbApp
+    const contenedor = document.getElementById('lista-historial');
+    if (!contenedor) return;
+
+    try {
+        const { data: casos, error } = await window.dbApp
             .from('emergencias_activas')
             .select('*')
             .eq('abogado_id', idPro)
             .order('created_at', { ascending: false });
 
-        const contenedor = document.getElementById('lista-historial');
+        if (error) throw error;
+
+        // Si no hay casos, quitamos el mensaje de "Cargando" y ponemos la realidad
         if (!casos || casos.length === 0) {
-            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5;">No hay casos registrados.</p>';
+            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.8rem;">No hay casos registrados en tu historial.</p>';
+            document.getElementById('total-casos').innerText = "0";
             return;
         }
+
+        document.getElementById('total-casos').innerText = casos.length;
 
         contenedor.innerHTML = casos.map(c => `
             <div style="background: var(--navy-light); padding: 1rem; border-radius: 12px; margin-bottom: 0.8rem; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <p style="font-weight: 800; font-size: 0.85rem;">Caso #${c.id.substring(0,6).toUpperCase()}</p>
+                    <p style="font-weight: 800; font-size: 0.85rem;">Caso #${c.id.toString().substring(0,6).toUpperCase()}</p>
                     <p style="font-size: 0.65rem; color: var(--gray-400);">${new Date(c.created_at).toLocaleString()}</p>
                 </div>
                 <span style="color: var(--green-active); font-weight: 700; font-size: 0.8rem;">+ $15.00</span>
             </div>
         `).join('');
+
+    } catch (e) {
+        console.error("Error cargando lista:", e);
+        contenedor.innerHTML = '<p style="text-align:center; color:var(--red-emergency);">Error al conectar con el historial.</p>';
     }
+}
 // ── AGENTE IA CONEXIÓN N8N ──
     async function sendMessage() {
         const input = document.getElementById('chat-input');
