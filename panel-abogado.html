@@ -242,7 +242,7 @@
         }
     }
 
-    // 5. ACEPTAR EMERGENCIA Y ABRIR SALA
+    // 5. ACEPTAR EMERGENCIA Y ACTIVAR CÁMARA
     async function acceptEmergency() {
         if (!currentEmergencyId || !miIdProfesional) return;
         const tarifaConfigurada = document.getElementById('input-tarifa').value || 15.00;
@@ -260,14 +260,34 @@
             document.getElementById('radar-visual').style.display = 'flex';
             
             showView('sala', document.querySelectorAll('.nav-item')[2]);
-            document.getElementById('sala-placeholder').innerHTML = `
-                <span style="font-size:3rem; margin-bottom:1rem;">🎥</span>
-                <h3 style="color: var(--green-active);">¡Conectado con el ciudadano!</h3>
-                <p style="font-size:0.9rem; margin-bottom: 2rem;">La sala segura está activa.</p>
-                <button onclick="terminarLlamadaYCobrar()" style="background: var(--red-emergency); color: white; border: none; padding: 1rem 2rem; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 15px rgba(239,68,68,0.4);">
-                    Finalizar Sesión y Cobrar $${tarifaConfigurada}
-                </button>
-            `;
+            
+            // Ocultamos el mensaje de "espera" y preparamos el contenedor de video
+            document.getElementById('sala-placeholder').style.display = 'none';
+            const videoContainer = document.getElementById('sala-video-container');
+            videoContainer.style.display = 'flex';
+            videoContainer.innerHTML = ''; 
+            
+            // Buscamos el enlace de video seguro 
+            let roomUrl = 'https://quickai.daily.co/emergencia'; 
+            try {
+                const { data: emerData } = await window.dbApp.from('emergencias_activas').select('sala_url').eq('id', currentEmergencyId).single();
+                if (emerData && emerData.sala_url) roomUrl = emerData.sala_url;
+            } catch(e) {}
+            
+            // Encendemos la cámara
+            callFrame = window.DailyIframe.createFrame(videoContainer, {
+                iframeStyle: { width: '100%', height: '100%', border: 'none', borderRadius: '12px', flex: '1' },
+                showLeaveButton: false 
+            });
+            await callFrame.join({ url: roomUrl });
+
+            // Colocamos el botón de cobro justo debajo del video
+            const btnCobrar = document.createElement('button');
+            btnCobrar.innerText = `Finalizar Sesión y Cobrar $${tarifaConfigurada}`;
+            btnCobrar.style.cssText = "background: var(--red-emergency); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; width: 100%; box-shadow: 0 5px 15px rgba(239,68,68,0.4);";
+            btnCobrar.onclick = terminarLlamadaYCobrar;
+            videoContainer.appendChild(btnCobrar);
+
         } else {
             alert("Error al conectar: " + error.message);
         }
@@ -284,12 +304,18 @@
         if (!error) {
             alert("✅ Sesión finalizada. Los fondos se han sumado a tu cuenta.");
             currentEmergencyId = null;
+            
+            // Apagamos y cerramos la cámara de forma limpia
+            if (callFrame) {
+                callFrame.destroy();
+                callFrame = null;
+            }
+            document.getElementById('sala-video-container').style.display = 'none';
+            document.getElementById('sala-placeholder').style.display = 'flex';
+            
+            // Refrescamos todo y enviamos al historial
             iniciarTodo();
             showView('historial', document.querySelectorAll('.nav-item')[3]);
-            document.getElementById('sala-placeholder').innerHTML = `
-                <span style="font-size:3rem; margin-bottom:1rem;">📹</span>
-                <p style="font-size:0.9rem;">Acepta una emergencia para iniciar la sala.</p>
-            `;
         } else {
             alert("Error al procesar el cobro: " + error.message);
         }
