@@ -587,5 +587,27 @@ async function checkUser() {
 
   </script>
   <script src="agente-ia.js"></script>
+  function mostrarNotificacion(mensaje, tipo = 'exito') {
+    const toast = document.createElement('div');
+    const color = tipo === 'exito' ? 'var(--green-active)' : 'var(--red-emergency)';
+    
+    toast.style.cssText = `
+        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+        background: ${color}; color: white; padding: 12px 24px; border-radius: 12px;
+        font-weight: 700; font-size: 0.9rem; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    `;
+    toast.innerText = mensaje;
+    document.body.appendChild(toast);
+
+    // Animación de entrada
+    setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
+
+    // Animación de salida y destrucción
+    setTimeout(() => {
+        toast.style.transform = 'translateX(-50%) translateY(100px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 </body>
 </html>
