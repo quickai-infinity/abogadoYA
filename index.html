@@ -1195,34 +1195,39 @@
       login(email, password);
     }
 
-    async function login(email, password) {
-  showToast('Entrando...', false);
-  const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
-  if (error) {
-    showToast(error.message, true);
-  } else {
-    // Redirección condicional basada en el tipo de usuario
-    const userType = data.user.user_metadata?.tipo;
-    if (userType === 'abogado') {
-      window.location.href = 'panel-abogado.html';
-    } else {
-      window.location.href = 'app.html';
-    }
-  }
-}
-
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      if (tab === 'ciudadano') {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('tab-ciudadano').classList.add('active');
+   async function login(email, password) {
+      showToast('Entrando...', false);
+      const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        showToast(error.message, true);
       } else {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('tab-abogado').classList.add('active');
+        const userType = data.user.user_metadata?.tipo;
+        if (userType === 'abogado') {
+          window.location.href = 'panel-abogado.html';
+        } else if (userType === 'gruero') {
+          // Nueva redirección para el gruero
+          window.location.href = 'panel-gruero.html';
+        } else {
+          window.location.href = 'app.html';
+        }
       }
     }
-
+   function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const buttons = document.querySelectorAll('.tab-btn');
+      if (tab === 'ciudadano') {
+        buttons[0].classList.add('active');
+        document.getElementById('tab-ciudadano').classList.add('active');
+      } else if (tab === 'abogado') {
+        buttons[1].classList.add('active');
+        document.getElementById('tab-abogado').classList.add('active');
+      } else {
+        // Esta es la nueva opción para el gruero
+        buttons[2].classList.add('active');
+        document.getElementById('tab-gruero').classList.add('active');
+      }
+    }
     async function submitCiudadano() {
       const nombre = document.getElementById('c-nombre').value.trim();
       const email = document.getElementById('c-email').value.trim();
@@ -1351,6 +1356,28 @@
           window.location.href = 'app.html';
         }
       }
+    }
+    async function submitGruero() {
+        const nombre = document.getElementById('g-nombre').value.trim();
+        const email = document.getElementById('g-email').value.trim();
+        const password = document.getElementById('g-password').value;
+        const placa = document.getElementById('g-placa').value.trim();
+
+        if(!nombre || !email || !password || !placa) return showToast("Completa todos los campos", true);
+
+        try {
+            const { data, error } = await dbClient.auth.signUp({
+                email, password,
+                options: { data: { tipo: 'gruero', nombre_completo: nombre, placa: placa } }
+            });
+            if (error) throw error;
+            
+            // Guardar en la tabla de grueros
+            await dbClient.from('grueros').insert([{ auth_id: data.user.id, nombre_completo: nombre, placa_vehiculo: placa }]);
+
+            showToast("✅ Registro exitoso", false);
+            setTimeout(() => window.location.href = 'panel-gruero.html', 1500);
+        } catch (err) { showToast(err.message, true); }
     }
   </script>
   <div id="login-modal">

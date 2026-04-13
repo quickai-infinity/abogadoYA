@@ -716,7 +716,44 @@
 
     // Inicializamos todo
     checkUser();
-    
+    async function solicitarGrua() {
+        if (!userLocation) {
+            mostrarNotificacion("⚠️ No tenemos tu ubicación GPS. Actívala para pedir la grúa.", "error");
+            return;
+        }
+
+        // Definimos el costo según el plan
+        let costoSOS = 30; // Precio base
+        if (planActual === 'estandar') costoSOS = 25;
+        if (planActual === 'premium') costoSOS = 20;
+
+        const confirmar = confirm(`¿Solicitar una grúa a tu ubicación actual?\nCosto estimado: $${costoSOS}.00`);
+        
+        if (confirmar) {
+            mostrarNotificacion("🛰️ Buscando la unidad más cercana...", "exito");
+            
+            try {
+                const { data: { user } } = await dbApp.auth.getUser();
+                
+                // Guardar la solicitud en la base de datos
+                const { error } = await dbApp.from('asistencias_viales').insert([{
+                    ciudadano_id: user.id,
+                    ubicacion_origen_lat: userLocation.lat,
+                    ubicacion_origen_lng: userLocation.lng,
+                    estado: 'pendiente',
+                    costo_final: costoSOS
+                }]);
+
+                if (error) throw error;
+                
+                alert("✅ Solicitud enviada. Un gruero se pondrá en contacto contigo por teléfono en breve.");
+
+            } catch (err) {
+                console.error(err);
+                mostrarNotificacion("Error al conectar con la red vial.", "error");
+            }
+        }
+    }
 
   </script>
   <script src="agente-ia.js"></script>
