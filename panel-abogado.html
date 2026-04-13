@@ -171,7 +171,6 @@
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     window.dbApp = window.supabase.createClient(API_URL, API_KEY);
 
-    // Estados globales necesarios para que funcionen las llamadas
     let isEnGuardia = false;
     let emergenciasChannel = null;
     let currentEmergencyId = null;
@@ -212,10 +211,10 @@
         const monto = document.getElementById('input-tarifa').value;
         const { error } = await window.dbApp.from('abogados').update({ tarifa_sesion: monto }).eq('id', miIdProfesional);
         if(!error) {
-            alert("✅ Tarifa actualizada correctamente.");
+            alert("Tarifa actualizada correctamente.");
             cerrarAjustes();
         } else {
-            alert("❌ Error al guardar: " + error.message);
+            alert("Error al guardar: " + error.message);
         }
     }
 
@@ -223,7 +222,7 @@
     function toggleGuardia() {
         const toggle = document.getElementById('guardia-toggle');
         isEnGuardia = toggle.checked;
-        document.getElementById('status-title').textContent = isEnGuardia ? "🟢 En Guardia Activa" : "Fuera de Servicio";
+        document.getElementById('status-title').textContent = isEnGuardia ? "En Guardia Activa" : "Fuera de Servicio";
         document.getElementById('radar-visual').classList.toggle('active', isEnGuardia);
 
         if (isEnGuardia) {
@@ -231,7 +230,7 @@
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emergencias_activas', filter: 'estado=eq.buscando' }, 
                 payload => {
                     currentEmergencyId = payload.new.id;
-                    document.getElementById('alert-location').innerHTML = `📍 Ubicación: ${payload.new.ubicacion_texto || 'Coordenadas recibidas'}`;
+                    document.getElementById('alert-location').innerHTML = `Ubicación: ${payload.new.ubicacion_texto || 'Coordenadas recibidas'}`;
                     document.getElementById('radar-visual').style.display = 'none';
                     document.getElementById('incoming-alert').style.display = 'block';
                 }).subscribe();
@@ -242,12 +241,17 @@
         }
     }
 
-    // 5. ACEPTAR EMERGENCIA Y ACTIVAR CÁMARA
+    // 5. ACEPTAR EMERGENCIA Y ACTIVAR CÁMARA BAJO PROTOCOLO SEGURO CON ESPERA
     async function acceptEmergency() {
         if (!currentEmergencyId || !miIdProfesional) return;
         const tarifaConfigurada = document.getElementById('input-tarifa').value || 15.00;
 
-        const { error } = await window.dbApp.from('emergencias_activas')
+        // Mostrar indicación de carga en el botón
+        const btnAccept = document.querySelector('.btn-accept');
+        if(btnAccept) btnAccept.innerText = "⏳ CONECTANDO SALA SECRETA...";
+
+        // Modificar el estado de la emergencia
+        const { error: updateError } = await window.dbApp.from('emergencias_activas')
             .update({ 
                 estado: 'activa', 
                 abogado_id: miIdProfesional,
@@ -255,42 +259,61 @@
             })
             .eq('id', currentEmergencyId);
 
-        if (!error) {
-            document.getElementById('incoming-alert').style.display = 'none';
-            document.getElementById('radar-visual').style.display = 'flex';
-            
-            showView('sala', document.querySelectorAll('.nav-item')[2]);
-            
-            // Ocultamos el mensaje de "espera" y preparamos el contenedor de video
-            document.getElementById('sala-placeholder').style.display = 'none';
-            const videoContainer = document.getElementById('sala-video-container');
-            videoContainer.style.display = 'flex';
-            videoContainer.innerHTML = ''; 
-            
-            // Buscamos el enlace de video seguro 
-            let roomUrl = 'https://quickai.daily.co/emergencia'; 
-            try {
-                const { data: emerData } = await window.dbApp.from('emergencias_activas').select('sala_url').eq('id', currentEmergencyId).single();
-                if (emerData && emerData.sala_url) roomUrl = emerData.sala_url;
-            } catch(e) {}
-            
-            // Encendemos la cámara
-            callFrame = window.DailyIframe.createFrame(videoContainer, {
-                iframeStyle: { width: '100%', height: '100%', border: 'none', borderRadius: '12px', flex: '1' },
-                showLeaveButton: false 
-            });
-            await callFrame.join({ url: roomUrl });
-
-            // Colocamos el botón de cobro justo debajo del video
-            const btnCobrar = document.createElement('button');
-            btnCobrar.innerText = `Finalizar Sesión y Cobrar $${tarifaConfigurada}`;
-            btnCobrar.style.cssText = "background: var(--red-emergency); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; width: 100%; box-shadow: 0 5px 15px rgba(239,68,68,0.4);";
-            btnCobrar.onclick = terminarLlamadaYCobrar;
-            videoContainer.appendChild(btnCobrar);
-
-        } else {
-            alert("Error al conectar: " + error.message);
+        if (updateError) {
+            alert("Error al procesar la solicitud: " + updateError.message);
+            if(btnAccept) btnAccept.innerText = "📹 ACEPTAR Y CONECTAR";
+            return;
         }
+
+        // Bucle de espera: Le damos hasta 8 segundos al servidor para crear la sala de video
+        let salaSeguraUrl = null;
+        let intentos = 0;
+
+        while (!salaSeguraUrl && intentos < 8) {
+            const { data: emerData } = await window.dbApp
+                .from('emergencias_activas')
+                .select('sala_url')
+                .eq('id', currentEmergencyId)
+                .single();
+
+            if (emerData && emerData.sala_url) {
+                salaSeguraUrl = emerData.sala_url;
+            } else {
+                intentos++;
+                // Esperar 1 segundo antes del próximo intento
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        if (!salaSeguraUrl) {
+            alert("El sistema de seguridad tardó demasiado en generar el enlace. Por favor, revisa la conexión.");
+            if(btnAccept) btnAccept.innerText = "📹 ACEPTAR Y CONECTAR";
+            return;
+        }
+
+        // Preparar la interfaz de la sala
+        document.getElementById('incoming-alert').style.display = 'none';
+        document.getElementById('radar-visual').style.display = 'flex';
+        showView('sala', document.querySelectorAll('.nav-item')[2]);
+        
+        document.getElementById('sala-placeholder').style.display = 'none';
+        const videoContainer = document.getElementById('sala-video-container');
+        videoContainer.style.display = 'flex';
+        videoContainer.innerHTML = ''; 
+        
+        // Ejecutar el iframe de Daily utilizando la URL generada
+        callFrame = window.DailyIframe.createFrame(videoContainer, {
+            iframeStyle: { width: '100%', height: '100%', border: 'none', borderRadius: '12px', flex: '1' },
+            showLeaveButton: false 
+        });
+        await callFrame.join({ url: salaSeguraUrl });
+
+        // Generar el botón de finalización y cobro
+        const btnCobrar = document.createElement('button');
+        btnCobrar.innerText = `Finalizar Sesión y Cobrar $${tarifaConfigurada}`;
+        btnCobrar.style.cssText = "background: var(--red-emergency); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; width: 100%; box-shadow: 0 5px 15px rgba(239,68,68,0.4);";
+        btnCobrar.onclick = terminarLlamadaYCobrar;
+        videoContainer.appendChild(btnCobrar);
     }
 
     // 6. FINALIZAR Y COBRAR AUTOMÁTICAMENTE
@@ -302,10 +325,9 @@
         });
 
         if (!error) {
-            alert("✅ Sesión finalizada. Los fondos se han sumado a tu cuenta.");
+            alert("Sesión finalizada. Los fondos se han registrado en el sistema.");
             currentEmergencyId = null;
             
-            // Apagamos y cerramos la cámara de forma limpia
             if (callFrame) {
                 callFrame.destroy();
                 callFrame = null;
@@ -313,11 +335,10 @@
             document.getElementById('sala-video-container').style.display = 'none';
             document.getElementById('sala-placeholder').style.display = 'flex';
             
-            // Refrescamos todo y enviamos al historial
             iniciarTodo();
             showView('historial', document.querySelectorAll('.nav-item')[3]);
         } else {
-            alert("Error al procesar el cobro: " + error.message);
+            alert("Error en el registro del cobro: " + error.message);
         }
     }
 
@@ -326,13 +347,13 @@
         const contenedor = document.getElementById('lista-historial');
         const { data: casos } = await window.dbApp.from('emergencias_activas').select('*').eq('abogado_id', idPro).order('created_at', { ascending: false });
         if (!casos || casos.length === 0) {
-            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.8rem;">No hay casos registrados.</p>';
+            contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.8rem;">No hay registros disponibles.</p>';
             return;
         }
         document.getElementById('total-casos').innerText = casos.length;
         contenedor.innerHTML = casos.map(c => `
             <div style="background: var(--navy-light); padding: 1rem; border-radius: 12px; margin-bottom: 0.8rem; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-                <div><p style="font-weight: 800; font-size: 0.85rem;">Caso #${c.id.toString().substring(0,6).toUpperCase()}</p><p style="font-size: 0.65rem; color: var(--gray-400);">${new Date(c.created_at).toLocaleString()}</p></div>
+                <div><p style="font-weight: 800; font-size: 0.85rem;">Registro #${c.id.toString().substring(0,6).toUpperCase()}</p><p style="font-size: 0.65rem; color: var(--gray-400);">${new Date(c.created_at).toLocaleString()}</p></div>
                 <span style="color: ${c.estado === 'finalizada' ? 'var(--green-active)' : 'var(--gold)'}; font-weight: 700; font-size: 0.8rem;">${c.estado === 'finalizada' ? '+ ' : ''}$${c.tarifa_aplicada}</span>
             </div>`).join('');
     }
@@ -344,7 +365,7 @@
         if (!text) return;
         const userDiv = document.createElement('div'); userDiv.className = 'msg user'; userDiv.innerText = text;
         container.appendChild(userDiv); input.value = '';
-        const botDiv = document.createElement('div'); botDiv.className = 'msg bot'; botDiv.innerHTML = "Consultando leyes... ⚖️";
+        const botDiv = document.createElement('div'); botDiv.className = 'msg bot'; botDiv.innerHTML = "Procesando consulta...";
         container.appendChild(botDiv); container.scrollTop = container.scrollHeight;
         try {
             const response = await fetch('https://panel1.quickai.agency/webhook/abogadoya-agente', {
@@ -352,8 +373,8 @@
                 body: JSON.stringify({ mensaje: text, origen: 'panel-abogado' })
             });
             const data = await response.json();
-            botDiv.innerText = data.output || "Sistema sin respuesta.";
-        } catch (err) { botDiv.innerText = "⚠️ Error de conexión."; }
+            botDiv.innerText = data.output || "Error de respuesta del sistema.";
+        } catch (err) { botDiv.innerText = "Error en la conexión con el servidor."; }
         container.scrollTop = container.scrollHeight;
     }
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
@@ -368,7 +389,6 @@
 
     async function logout() { await window.dbApp.auth.signOut(); window.location.href = 'index.html'; }
 
-    // ARRANCAR TODO
     iniciarTodo();
 </script>
 </body>
