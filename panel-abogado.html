@@ -272,12 +272,12 @@
         while (!salaSeguraUrl && intentos < 8) {
             const { data: emerData } = await window.dbApp
                 .from('emergencias_activas')
-                .select('sala_url')
+                .select('sala_webrtc_url')
                 .eq('id', currentEmergencyId)
                 .single();
 
-            if (emerData && emerData.sala_url) {
-                salaSeguraUrl = emerData.sala_url;
+            if (emerData && emerData.sala_webrtc_url) {
+                salaSeguraUrl = emerData.sala_webrtc_url;
             } else {
                 intentos++;
                 // Esperar 1 segundo antes del próximo intento
