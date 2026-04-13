@@ -1348,10 +1348,15 @@
         alert("Error: " + error.message);
         btn.innerText = 'Entrar ahora';
       } else {
-        // Aquí leemos qué tipo de usuario es y decidimos a dónde enviarlo
+        // Obtenemos el tipo de usuario guardado en los metadatos de Supabase
         const userType = data.user.user_metadata?.tipo;
+
+        // REDIRECCIÓN SEGÚN EL ROL:
         if (userType === 'abogado') {
           window.location.href = 'panel-abogado.html';
+        } else if (userType === 'gruero') {
+          // ESTA ES LA LÍNEA NUEVA QUE AGREGAMOS
+          window.location.href = 'panel-gruero.html';
         } else {
           window.location.href = 'app.html';
         }
