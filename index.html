@@ -644,12 +644,12 @@
       text-align: center;
     }
 
-.stat h3 {
+   .stat h3 {
   font-size: 1.8rem;
   font-weight: 900;
   background: linear-gradient(135deg, var(--blue-soft), var(--blue-trust));
   -webkit-background-clip: text;
-  background-clip: text; /* ESTA ES LA LÍNEA QUE FALTA */
+  background-clip: text; /* ESTA ES LA LÍNEA QUE DEBES AGREGAR */
   -webkit-text-fill-color: transparent;
 }
 
@@ -720,6 +720,8 @@
       border-radius: 12px;
       padding: 4px;
       margin-bottom: 2rem;
+      gap: 4px; /* Espacio entre botones */
+      flex-wrap: wrap; /* Para que bajen si no caben en pantallas muy pequeñas */
     }
 
     .tab-btn {
@@ -834,7 +836,8 @@
 
     <div class="hero-buttons">
       <a href="#registro" class="btn-primary">🛡️ Quiero Protegerme</a>
-      <a href="#abogados" class="btn-secondary">⚖ Soy Abogado</a>
+      <a href="#registro" class="btn-secondary" onclick="switchTab('abogado')">⚖ Soy Abogado</a>
+      <a href="#registro" class="btn-secondary" onclick="switchTab('gruero')" style="border-color: var(--gold); color: var(--gold);">🚜 Soy Gruero</a>
     </div>
 
     <div class="hero-legal">
