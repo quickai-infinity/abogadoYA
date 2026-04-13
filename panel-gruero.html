@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AbogadoYA — Panel Gruero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --navy: #0A1628; --yellow-grua: #FACC15; --green-active: #22C55E; }
+        body { background: var(--navy); color: white; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
+        .header { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
+        .radar-box { height: 300px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(250, 204, 21, 0.05) 0%, transparent 70%); }
+        .btn-status { width: 80%; padding: 1.2rem; border-radius: 15px; border: none; font-weight: 800; font-size: 1.1rem; cursor: pointer; }
+        .online { background: var(--green-active); color: var(--navy); }
+        .offline { background: #334155; color: white; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div style="font-weight: 800;">AbogadoYA <span>| ASISTENCIA VIAL</span></div>
+        <button onclick="logout()" style="background:none; border:1px solid white; color:white; border-radius:5px;">Salir</button>
+    </header>
+
+    <main style="padding: 1.5rem;">
+        <div id="status-card" style="text-align:center;">
+            <h2 id="txt-status">Fuera de Servicio</h2>
+            <button id="btn-toggle" class="btn-status offline" onclick="toggleServicio()">ACTIVAR GUARDIA VIAL</button>
+        </div>
+
+        <div id="alerta-servicio" style="display:none; background:var(--yellow-grua); color:black; padding:1.5rem; border-radius:20px; margin-top:2rem;">
+            <h3>⚠️ NUEVO SERVICIO</h3>
+            <p id="distancia-cliente">A 2.5 km de tu posición</p>
+            <button onclick="aceptarServicio()" style="width:100%; padding:1rem; background:black; color:white; border:none; border-radius:10px; font-weight:bold;">ACEPTAR Y VER RUTA</button>
+        </div>
+
+        <div id="chat-ia" style="margin-top:3rem; background:rgba(255,255,255,0.03); padding:1rem; border-radius:15px;">
+            <h4 style="margin:0 0 10px 0;">🧠 Asistente de Operaciones</h4>
+            <div id="chat-messages" style="height:150px; overflow-y:auto; font-size:0.8rem; margin-bottom:10px;">
+                <p>Hola. Puedo ayudarte con rutas, reglamentos de carga o reportes de fallas.</p>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="chat-input" placeholder="Duda sobre el servicio..." style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:8px; border-radius:8px;">
+                <button onclick="sendMessage()" style="background:var(--yellow-grua); border:none; border-radius:8px; padding:0 15px;">🚀</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="agente-ia.js"></script>
+    <script>
+        // Lógica de Supabase e intervalos de GPS cada 30 segundos
+        let isOnline = false;
+        function toggleServicio() {
+            isOnline = !isOnline;
+            const btn = document.getElementById('btn-toggle');
+            btn.innerText = isOnline ? "EN SERVICIO (GPS ACTIVO)" : "ACTIVAR GUARDIA VIAL";
+            btn.className = isOnline ? "btn-status online" : "btn-status offline";
+            if(isOnline) iniciarRastreoGPS();
+        }
+    </script>
+</body>
+</html>
