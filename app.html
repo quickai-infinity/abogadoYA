@@ -37,8 +37,7 @@
     .sos-btn:active { transform: scale(0.92); }
     .sos-btn .sos-sub { font-size: 0.55rem; font-weight: 600; letter-spacing: 2px; margin-top: 4px; opacity: 0.8; }
 
-    .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1.5rem; width: 100%; }
-    .action-card { background: rgba(255,255,255,0.02); padding: 0.9rem; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); text-align: center; opacity: 0.3; transition: all 0.5s ease; }
+    .quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 1.5rem; width: 100%; }    .action-card { background: rgba(255,255,255,0.02); padding: 0.9rem; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); text-align: center; opacity: 0.3; transition: all 0.5s ease; }
     .action-card.active { opacity: 1; background: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.4); box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
     .action-card span { display: block; font-size: 1.4rem; margin-bottom: 4px; }
     .action-card p { font-size: 0.6rem; font-weight: 700; color: #94A3B8; }
@@ -160,10 +159,11 @@
         <div class="action-card" id="ac-gps"><span>📍</span><p>GPS ACTIVO</p></div>
         <div class="action-card" id="ac-alerta"><span>🔔</span><p>ALERTA FAMILIA</p></div>
         <div class="action-card" id="ac-nube"><span>☁️</span><p>NUBE BLINDADA</p></div>
+        <div class="action-card" id="ac-grua" onclick="solicitarGrua()" style="opacity: 1; background: rgba(250, 204, 21, 0.1); border-color: rgba(250, 204, 21, 0.4);">
+          <span>🚜</span>
+          <p>PEDIR GRÚA</p>
+        </div>
       </div>
-      <div class="gps-status" id="gps-status"></div>
-      <div id="jitsi-container" style="display: none;"></div>
-    </div>
 
     <div id="view-ia" class="view">
       <h2 style="margin-bottom:0.6rem; font-size: 1rem;">🧠 Agente Legal IA</h2>
