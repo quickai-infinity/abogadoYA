@@ -191,8 +191,10 @@
     let userLocation = null;
     let currentUser = null;
     let userProfile = null;
+    let consultasUsadas = 0;
+    let planActual = 'gratis';
 
-    // ── TOAST ──
+    // ── TOAST Y NOTIFICACIONES ──
     function showToast(msg, type) {
       const t = document.getElementById('toast');
       t.textContent = msg;
@@ -200,57 +202,86 @@
       setTimeout(() => { t.className = 'toast'; }, 3000);
     }
 
-   // ── CHECK USER ──
-async function checkUser() {
-  try {
-    const { data: { user } } = await dbApp.auth.getUser();
-    if (!user) { window.location.href = 'index.html'; return; }
-    currentUser = user;
-    
-    // Carga de Perfil
-    const { data: profile } = await dbApp.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle();
-    if (profile) {
-      userProfile = profile;
-      document.getElementById('welcome-name').innerText = 'Hola, ' + profile.nombre_completo.split(' ')[0];
-      document.getElementById('profile-name').innerText = profile.nombre_completo;
-      document.getElementById('contact-name').value = profile.contacto_emergencia_1_nombre || '';
-      document.getElementById('contact-tel').value = profile.contacto_emergencia_1_telefono || '';
-      document.getElementById('contact-name-2').value = profile.contacto_emergencia_2_nombre || '';
-      document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
+    function mostrarNotificacion(mensaje, tipo = 'exito') {
+        const toast = document.createElement('div');
+        const color = tipo === 'exito' ? 'var(--green-active)' : 'var(--red-emergency)';
+        
+        toast.style.cssText = `
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: ${color}; color: white; padding: 12px 24px; border-radius: 12px;
+            font-weight: 700; font-size: 0.9rem; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        `;
+        toast.innerText = mensaje;
+        document.body.appendChild(toast);
+
+        setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(-50%) translateY(100px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     }
 
-    // ── AQUÍ SE PEGA LA CONEXIÓN A LA TABLA SALDOS ──
-    const { data: billetera } = await dbApp.from('saldos')
-        .select('creditos_disponibles')
-        .eq('usuario_id', user.id)
-        .maybeSingle();
-    
-    const saldoReal = billetera ? billetera.creditos_disponibles : 0.00;
-    
-    // Actualizamos el panel principal (si creaste el div 'main-balance')
-    const mainBalance = document.getElementById('main-balance');
-    if (mainBalance) mainBalance.innerText = `Saldo: $${saldoReal.toFixed(2)}`;
-    
-    // Actualizamos la ventana oculta de la Billetera
-    const saldoUI = document.getElementById('saldoActualUI');
-    if (saldoUI) saldoUI.innerText = `$${saldoReal.toFixed(2)}`;
-    // ────────────────────────────────────────────────
+    // ── CHECK USER Y CARGA INICIAL ──
+    async function cargarPlanUsuario() {
+        const { data: { user } } = await dbApp.auth.getUser();
+        if (!user) return;
+        
+        const { data: saldoData } = await dbApp.from('saldos').select('plan_activo, consultas_ia_usadas').eq('usuario_id', user.id).maybeSingle();
+        
+        if (saldoData) {
+            planActual = saldoData.plan_activo || 'gratis';
+            consultasUsadas = saldoData.consultas_ia_usadas || 0;
+        }
+    }
 
-    // Llamamos a la verificación de Admin
-    verificarSiEsAdmin(user.id);
-    
-  } catch (e) { console.error(e); }
-  
-  document.getElementById('loader').style.display = 'none';
-  requestGPS();
-  
-  if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
-    setTimeout(() => {
-      showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
-      showView('perfil', document.querySelectorAll('.nav-item')[2]);
-    }, 1500);
-  }
-}
+    async function checkUser() {
+      try {
+        const { data: { user } } = await dbApp.auth.getUser();
+        if (!user) { window.location.href = 'index.html'; return; }
+        currentUser = user;
+        
+        // Carga de Perfil
+        const { data: profile } = await dbApp.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle();
+        if (profile) {
+          userProfile = profile;
+          document.getElementById('welcome-name').innerText = 'Hola, ' + profile.nombre_completo.split(' ')[0];
+          document.getElementById('profile-name').innerText = profile.nombre_completo;
+          document.getElementById('contact-name').value = profile.contacto_emergencia_1_nombre || '';
+          document.getElementById('contact-tel').value = profile.contacto_emergencia_1_telefono || '';
+          document.getElementById('contact-name-2').value = profile.contacto_emergencia_2_nombre || '';
+          document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
+        } 
+
+        // Carga el plan de cobro y el conteo de preguntas
+        await cargarPlanUsuario();
+
+        // Carga la billetera
+        const { data: billetera } = await dbApp.from('saldos').select('creditos_disponibles').eq('usuario_id', user.id).maybeSingle();
+        const saldoReal = billetera ? billetera.creditos_disponibles : 0.00;
+        
+        const mainBalance = document.getElementById('main-balance');
+        if (mainBalance) mainBalance.innerText = `Saldo: $${saldoReal.toFixed(2)}`;
+        
+        const saldoUI = document.getElementById('saldoActualUI');
+        if (saldoUI) saldoUI.innerText = `$${saldoReal.toFixed(2)}`;
+
+        verificarSiEsAdmin(user.id);
+        document.getElementById('loader').style.display = 'none';
+        requestGPS();
+        
+        if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
+          setTimeout(() => {
+            showToast('⚠️ Configura tu contacto de emergencia en Perfil', 'error');
+            showView('perfil', document.querySelectorAll('.nav-item')[2]);
+          }, 1500);
+        }
+
+      } catch (error) {
+        console.error("Error al cargar el usuario:", error);
+      }
+    }
 
     // ── NAVEGACIÓN ──
     function showView(viewId, el) {
@@ -291,6 +322,18 @@ async function checkUser() {
         return;
       }
 
+      if (planActual === 'gratis') {
+          const confirmarPago = confirm("Estás en el Plan Gratis. La conexión con un abogado en vivo tiene un costo de $15.00.\n\n¿Deseas continuar y realizar el pago?");
+          
+          if (!confirmarPago) {
+              mostrarNotificacion("Operación cancelada.", "error");
+              return;
+          }
+          mostrarNotificacion("⏳ Procesando pago...", "exito");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          mostrarNotificacion("✅ Pago exitoso. Buscando abogado...", "exito");
+      }
+
       const btn = document.querySelector('.sos-btn');
       btn.innerHTML = '⏳<div class="sos-sub">CONECTANDO...</div>';
       btn.style.pointerEvents = 'none'; 
@@ -298,14 +341,12 @@ async function checkUser() {
       try {
         const { data: { user } } = await dbApp.auth.getUser();
 
-        // 1 y 2. Pedimos la sala y el token a nuestro servidor seguro
         const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
         if (salaError || !salaData) throw new Error('Error al conectar con el servidor de salas');
 
         const room = { url: salaData.url };
         const tokenData = { token: salaData.token };
         
-        // 3. Guardar emergencia con ubicación
         const insertData = {
           ciudadano_id: user.id,
           sala_webrtc_url: room.url,
@@ -322,9 +363,7 @@ async function checkUser() {
         }
         
         await dbApp.from('emergencias_activas').insert([insertData]);
-        // ... (código previo del insertData y GPS)
 
-        // ── INICIO DEL ESCUCHADOR (PEGAR AQUÍ) ──
         const { data: registroEmergencia } = await dbApp.from('emergencias_activas')
             .select('id')
             .eq('ciudadano_id', user.id)
@@ -343,17 +382,14 @@ async function checkUser() {
                 filter: `id=eq.${emergencyId}` 
             }, async (payload) => {
                 
-                // CASO A: El abogado propone un precio
                 if (payload.new.estado === 'propuesta_enviada') {
                     const tarifa = payload.new.tarifa_aplicada;
                     
                     if (confirm(`⚖️ Abogado conectado.\nTarifa por asistencia: $${tarifa}\n\n¿Aceptas el cargo a tu saldo para iniciar?`)) {
-                        // Si acepta, cambiamos a 'atendida'
                         await dbApp.from('emergencias_activas')
                             .update({ estado: 'atendida' })
                             .eq('id', emergencyId);
                     } else {
-                        // Si rechaza, cancelamos la solicitud
                         await dbApp.from('emergencias_activas')
                             .update({ estado: 'cancelada' })
                             .eq('id', emergencyId);
@@ -361,18 +397,16 @@ async function checkUser() {
                     }
                 }
 
-                // CASO B: La sesión está oficialmente activa (Video On)
                 if (payload.new.estado === 'atendida') {
                     const tarifaFinal = payload.new.tarifa_aplicada || 15.00;
                     showToast(`✅ Sesión iniciada ($${tarifaFinal})`, 'success');
                     btn.innerHTML = `🔴<div class="sos-sub">SESIÓN: $${tarifaFinal}</div>`;
-                    
-                    // El código de videollamada que sigue abajo se activará automáticamente
                     dbApp.removeChannel(canalRespuesta);
                 }
             })
             .subscribe();
         }
+
         try {
           const webhookData = {
             tipo: 'emergencia',
@@ -390,15 +424,12 @@ async function checkUser() {
             }),
             new Promise(resolve => setTimeout(resolve, 800))
           ]);
-          console.log('✅ Webhook n8n disparado');
         } catch(e) { console.log('⚠️ Webhook ignorado'); }
 
-        // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
         showToast('🔴 Emergencia activada');
         
-        // 6. Abrir Videollamada
         const dailyUrl = room.url + '?t=' + tokenData.token;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
@@ -476,45 +507,57 @@ async function checkUser() {
       } catch (e) { showToast('Error al guardar', 'error'); }
     }
 
+    // ── AGENTE IA ──
     async function sendMessage() {
-    const input = document.getElementById('chat-input');
-    const container = document.getElementById('chat-messages');
-    const text = input.value.trim();
-    if (!text) return;
+        const input = document.getElementById('chat-input');
+        const container = document.getElementById('chat-messages');
+        const text = input.value.trim();
+        if (!text) return;
 
-    // 1. Mostrar mensaje del usuario en pantalla
-    const userDiv = document.createElement('div');
-    userDiv.className = 'msg user';
-    userDiv.innerText = text;
-    container.appendChild(userDiv);
-    input.value = '';
+        if (planActual === 'gratis' && consultasUsadas >= 5) {
+            mostrarNotificacion("Límite de 5 consultas gratuitas alcanzado.", "error");
+            
+            const limiteDiv = document.createElement('div'); 
+            limiteDiv.className = 'msg bot'; 
+            limiteDiv.innerHTML = "<b>Límite mensual de consultas alcanzado.</b><br>Para continuar operando con el Agente de Leyes 24/7, es indispensable realizar la actualización al Plan PREMIUM en su perfil.";
+            container.appendChild(limiteDiv);
+            container.scrollTop = container.scrollHeight;
+            return; 
+        }
 
-    // 2. Crear burbuja de espera del bot
-    const botDiv = document.createElement('div');
-    botDiv.className = 'msg bot';
-    botDiv.innerHTML = "Analizando leyes... ⚖️";
-    container.appendChild(botDiv);
-    container.scrollTop = container.scrollHeight;
+        const userDiv = document.createElement('div');
+        userDiv.className = 'msg user';
+        userDiv.innerText = text;
+        container.appendChild(userDiv);
+        input.value = '';
 
-    try {
-        // 3. ENVIAR AL WEBHOOK DE N8N
-        const response = await fetch('https://panel1.quickai.agency/webhook/abogadoya-agente', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mensaje: text })
-        });
+        const botDiv = document.createElement('div');
+        botDiv.className = 'msg bot';
+        botDiv.innerHTML = "Analizando leyes y reglamentos... ⚖️";
+        container.appendChild(botDiv);
+        container.scrollTop = container.scrollHeight;
 
-        const data = await response.json();
-        
-        // 4. RECIBIR Y MOSTRAR (n8n entrega el texto en 'output')
-        botDiv.innerText = data.output || "No hay respuesta del cerebro.";
+        try {
+            const response = await fetch('https://panel1.quickai.agency/webhook/abogadoya-agente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje: text, origen: 'app-ciudadano' })
+            });
 
-    } catch (err) {
-        botDiv.innerText = "Error: No pude conectar con el cerebro legal.";
-        console.error(err);
+            const data = await response.json();
+            botDiv.innerText = data.output || "No se ha recibido una respuesta válida del sistema central.";
+
+            consultasUsadas++;
+            const { data: { user } } = await dbApp.auth.getUser();
+            if (user) {
+                await dbApp.from('saldos').update({ consultas_ia_usadas: consultasUsadas }).eq('usuario_id', user.id);
+            }
+
+        } catch (err) {
+            botDiv.innerText = "Error: Falla de conexión con la red de análisis legal.";
+        }
+        container.scrollTop = container.scrollHeight;
     }
-    container.scrollTop = container.scrollHeight;
-}
 
     function startDictation() {
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -587,27 +630,5 @@ async function checkUser() {
 
   </script>
   <script src="agente-ia.js"></script>
-  function mostrarNotificacion(mensaje, tipo = 'exito') {
-    const toast = document.createElement('div');
-    const color = tipo === 'exito' ? 'var(--green-active)' : 'var(--red-emergency)';
-    
-    toast.style.cssText = `
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
-        background: ${color}; color: white; padding: 12px 24px; border-radius: 12px;
-        font-weight: 700; font-size: 0.9rem; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    `;
-    toast.innerText = mensaje;
-    document.body.appendChild(toast);
-
-    // Animación de entrada
-    setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
-
-    // Animación de salida y destrucción
-    setTimeout(() => {
-        toast.style.transform = 'translateX(-50%) translateY(100px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-}
 </body>
 </html>
