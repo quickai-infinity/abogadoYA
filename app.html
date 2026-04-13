@@ -10,7 +10,7 @@
     :root {
       --navy: #0A1628; --navy-light: #121F36; --blue-trust: #2563EB;
       --red-emergency: #EF4444; --green-active: #22C55E; --white: #FFFFFF;
-      --gray-400: #94A3B8; --gray-500: #64748B;
+      --gray-400: #94A3B8; --gray-500: #64748B; --gold: #F59E0B;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: var(--navy); color: var(--white); font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -77,12 +77,58 @@
     .toast.show { transform: translateX(-50%) translateY(0); }
     .toast.success { background: var(--green-active); color: var(--navy); }
     .toast.error { background: var(--red-emergency); color: white; }
+
+    /* ESTILOS DEL MURO DE PLANES */
+    .plan-card { background: var(--navy-light); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 350px; margin-bottom: 1rem; text-align: center; }
+    .plan-card.premium { border: 2px solid var(--gold); position: relative; }
+    .plan-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--navy); font-size: 0.7rem; font-weight: 900; padding: 4px 12px; border-radius: 20px; }
   </style>
 </head>
 <body>
 
   <div id="loader">🛡️ Protegiendo tus derechos...</div>
   <div class="toast" id="toast"></div>
+
+  <div id="modalSeleccionPlan" style="display:none; position:fixed; inset:0; background:var(--navy); z-index:99999; flex-direction:column; align-items:center; justify-content:flex-start; overflow-y:auto; padding:2rem 1rem;">
+      <h2 style="color:white; margin-bottom:5px; text-align:center;">Elige tu Nivel de Protección</h2>
+      <p style="color:var(--gray-400); text-align:center; font-size:0.85rem; margin-bottom:2rem;">Selecciona un plan para activar tu cuenta AbogadoYA.</p>
+
+      <div class="plan-card">
+          <h3 style="color:white; font-size:1.2rem;">Básico</h3>
+          <h1 style="color:white; margin:10px 0;">$0<span style="font-size:0.8rem; color:var(--gray-500);">/mes</span></h1>
+          <ul style="text-align:left; font-size:0.8rem; color:var(--gray-400); margin-bottom:20px; line-height:1.8; list-style:none; padding:0;">
+              <li>✅ 5 Consultas IA al mes</li>
+              <li>✅ Acceso al Pool de Abogados</li>
+              <li>❌ Pago completo por SOS ($15)</li>
+          </ul>
+          <button onclick="guardarPlanUsuario('gratis')" style="width:100%; background:transparent; border:1px solid var(--gray-400); color:white; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">Seleccionar Básico</button>
+      </div>
+
+      <div class="plan-card">
+          <h3 style="color:var(--blue-trust); font-size:1.2rem;">Estándar</h3>
+          <h1 style="color:white; margin:10px 0;">$5<span style="font-size:0.8rem; color:var(--gray-500);">/mes</span></h1>
+          <ul style="text-align:left; font-size:0.8rem; color:var(--gray-400); margin-bottom:20px; line-height:1.8; list-style:none; padding:0;">
+              <li>✅ 20 Consultas IA al mes</li>
+              <li>✅ Alerta SOS automática a Familia</li>
+              <li>✅ Tarifa reducida por SOS ($12)</li>
+          </ul>
+          <button onclick="guardarPlanUsuario('estandar')" style="width:100%; background:var(--blue-trust); border:none; color:white; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">Seleccionar Estándar</button>
+      </div>
+
+      <div class="plan-card premium">
+          <div class="plan-tag">MÁXIMA SEGURIDAD</div>
+          <h3 style="color:var(--gold); font-size:1.2rem;">Premium</h3>
+          <h1 style="color:white; margin:10px 0;">$10<span style="font-size:0.8rem; color:var(--gray-500);">/mes</span></h1>
+          <ul style="text-align:left; font-size:0.8rem; color:white; margin-bottom:20px; line-height:1.8; list-style:none; padding:0;">
+              <li>✅ <b>Agente IA Ilimitado 24/7</b></li>
+              <li>✅ <b>Conexión SOS Prioritaria</b></li>
+              <li>✅ <b>Nube Blindada Antirrobo</b></li>
+              <li>✅ Mejor tarifa por SOS ($10)</li>
+          </ul>
+          <button onclick="guardarPlanUsuario('premium')" style="width:100%; background:var(--gold); border:none; color:var(--navy); padding:12px; border-radius:8px; cursor:pointer; font-weight:900;">Seleccionar Premium</button>
+      </div>
+      <p id="loader-plan" style="display:none; color:var(--green-active); font-weight:bold; margin-top:10px;">⏳ Procesando selección...</p>
+  </div>
 
   <header>
     <div class="logo-small">Abogado<span>YA</span></div>
@@ -138,6 +184,13 @@
           <h2 style="font-size:1rem;" id="profile-name">Mi Perfil</h2>
         </div>
 
+        <div class="profile-group" style="text-align: center; background: rgba(37, 99, 235, 0.05); border-color: rgba(37, 99, 235, 0.3);">
+          <h3 style="color: white; margin-bottom: 5px;">Plan Actual: <span id="plan-display" style="color: var(--gold); text-transform: uppercase;">CARGANDO</span></h3>
+          <button onclick="document.getElementById('modalSeleccionPlan').style.display='flex'" style="background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px;">
+            Cambiar Plan
+          </button>
+        </div>
+
         <div class="profile-group">
           <label>Contacto de emergencia</label>
           <input type="text" id="contact-name" placeholder="Ej: Mi Madre">
@@ -191,8 +244,10 @@
     let userLocation = null;
     let currentUser = null;
     let userProfile = null;
+    
+    // Variables de Control de Plan
     let consultasUsadas = 0;
-    let planActual = 'gratis';
+    let planActual = null;
 
     // ── TOAST Y NOTIFICACIONES ──
     function showToast(msg, type) {
@@ -205,37 +260,55 @@
     function mostrarNotificacion(mensaje, tipo = 'exito') {
         const toast = document.createElement('div');
         const color = tipo === 'exito' ? 'var(--green-active)' : 'var(--red-emergency)';
-        
-        toast.style.cssText = `
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
-            background: ${color}; color: white; padding: 12px 24px; border-radius: 12px;
-            font-weight: 700; font-size: 0.9rem; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        `;
+        toast.style.cssText = `position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: ${color}; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; z-index: 9999;`;
         toast.innerText = mensaje;
         document.body.appendChild(toast);
-
         setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateX(-50%) translateY(100px)';
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
+        setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(100px)'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // ── CHECK USER Y CARGA INICIAL ──
+    // ── LÓGICA DEL MURO DE PLANES ──
     async function cargarPlanUsuario() {
         const { data: { user } } = await dbApp.auth.getUser();
         if (!user) return;
         
         const { data: saldoData } = await dbApp.from('saldos').select('plan_activo, consultas_ia_usadas').eq('usuario_id', user.id).maybeSingle();
         
-        if (saldoData) {
-            planActual = saldoData.plan_activo || 'gratis';
+        if (!saldoData || !saldoData.plan_activo) {
+            document.getElementById('modalSeleccionPlan').style.display = 'flex';
+        } else {
+            planActual = saldoData.plan_activo;
             consultasUsadas = saldoData.consultas_ia_usadas || 0;
+            if (document.getElementById('plan-display')) document.getElementById('plan-display').innerText = planActual;
         }
     }
 
+    async function guardarPlanUsuario(planElegido) {
+        document.getElementById('loader-plan').style.display = 'block';
+        const { data: { user } } = await dbApp.auth.getUser();
+        
+        const { error } = await dbApp.from('saldos').upsert({ 
+            usuario_id: user.id, 
+            plan_activo: planElegido,
+            creditos_disponibles: 0 
+        }, { onConflict: 'usuario_id' });
+
+        if (!error) {
+            planActual = planElegido;
+            if (document.getElementById('plan-display')) document.getElementById('plan-display').innerText = planActual;
+            document.getElementById('modalSeleccionPlan').style.display = 'none';
+            showToast('✅ Plan ' + planElegido.toUpperCase() + ' activado');
+            
+            if (planElegido === 'estandar' || planElegido === 'premium') {
+                setTimeout(() => alert('Próximamente: Redirección a la pasarela de pago para facturar la suscripción mensual.'), 1000);
+            }
+        } else {
+            alert('Error al guardar: ' + error.message);
+        }
+        document.getElementById('loader-plan').style.display = 'none';
+    }
+
+    // ── CHECK USER Y CARGA INICIAL ──
     async function checkUser() {
       try {
         const { data: { user } } = await dbApp.auth.getUser();
@@ -254,7 +327,7 @@
           document.getElementById('contact-tel-2').value = profile.contacto_emergencia_2_telefono || '';
         } 
 
-        // Carga el plan de cobro y el conteo de preguntas
+        // Verificamos si debe elegir plan antes de continuar
         await cargarPlanUsuario();
 
         // Carga la billetera
@@ -314,7 +387,7 @@
       );
     }
 
-    // ── EMERGENCIA ──
+    // ── EMERGENCIA CON PRECIOS DINÁMICOS POR PLAN ──
     async function triggerEmergency() {
       if (!userProfile || !userProfile.contacto_emergencia_1_telefono) {
         showToast('⚠️ Primero guarda un contacto de emergencia en Perfil', 'error');
@@ -322,16 +395,16 @@
         return;
       }
 
-      if (planActual === 'gratis') {
-          const confirmarPago = confirm("Estás en el Plan Gratis. La conexión con un abogado en vivo tiene un costo de $15.00.\n\n¿Deseas continuar y realizar el pago?");
-          
-          if (!confirmarPago) {
-              mostrarNotificacion("Operación cancelada.", "error");
-              return;
-          }
-          mostrarNotificacion("⏳ Procesando pago...", "exito");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          mostrarNotificacion("✅ Pago exitoso. Buscando abogado...", "exito");
+      // Definir costo según plan
+      let costoSOS = 15;
+      if (planActual === 'estandar') costoSOS = 12;
+      if (planActual === 'premium') costoSOS = 10;
+
+      const confirmarPago = confirm(`Atención: La conexión con un abogado en vivo tiene un costo de $${costoSOS}.00 según tu plan ${planActual.toUpperCase()}.\n\n¿Deseas continuar y realizar el cargo a tu saldo?`);
+      
+      if (!confirmarPago) {
+          mostrarNotificacion("Operación cancelada.", "error");
+          return;
       }
 
       const btn = document.querySelector('.sos-btn');
@@ -341,12 +414,14 @@
       try {
         const { data: { user } } = await dbApp.auth.getUser();
 
+        // 1 y 2. Pedimos la sala y el token a nuestro servidor seguro
         const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
         if (salaError || !salaData) throw new Error('Error al conectar con el servidor de salas');
 
         const room = { url: salaData.url };
         const tokenData = { token: salaData.token };
         
+        // 3. Guardar emergencia con ubicación
         const insertData = {
           ciudadano_id: user.id,
           sala_webrtc_url: room.url,
@@ -364,6 +439,7 @@
         
         await dbApp.from('emergencias_activas').insert([insertData]);
 
+        // ── INICIO DEL ESCUCHADOR ──
         const { data: registroEmergencia } = await dbApp.from('emergencias_activas')
             .select('id')
             .eq('ciudadano_id', user.id)
@@ -382,6 +458,7 @@
                 filter: `id=eq.${emergencyId}` 
             }, async (payload) => {
                 
+                // CASO A: El abogado propone un precio
                 if (payload.new.estado === 'propuesta_enviada') {
                     const tarifa = payload.new.tarifa_aplicada;
                     
@@ -397,10 +474,12 @@
                     }
                 }
 
+                // CASO B: La sesión está oficialmente activa
                 if (payload.new.estado === 'atendida') {
-                    const tarifaFinal = payload.new.tarifa_aplicada || 15.00;
+                    const tarifaFinal = payload.new.tarifa_aplicada || costoSOS;
                     showToast(`✅ Sesión iniciada ($${tarifaFinal})`, 'success');
                     btn.innerHTML = `🔴<div class="sos-sub">SESIÓN: $${tarifaFinal}</div>`;
+                    
                     dbApp.removeChannel(canalRespuesta);
                 }
             })
@@ -424,12 +503,15 @@
             }),
             new Promise(resolve => setTimeout(resolve, 800))
           ]);
+          console.log('✅ Webhook n8n disparado');
         } catch(e) { console.log('⚠️ Webhook ignorado'); }
 
+        // 5. Interfaz EN VIVO
         btn.innerHTML = '🔴<div class="sos-sub">EN VIVO</div>';
         document.querySelectorAll('.action-card').forEach(c => c.classList.add('active'));
         showToast('🔴 Emergencia activada');
         
+        // 6. Abrir Videollamada
         const dailyUrl = room.url + '?t=' + tokenData.token;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
@@ -470,7 +552,7 @@
       }
     }
 
-    // ── AUXILIARES ──
+    // ── AUXILIARES DE GRABACIÓN Y EMERGENCIA ──
     async function startHiddenRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
@@ -507,19 +589,25 @@
       } catch (e) { showToast('Error al guardar', 'error'); }
     }
 
-    // ── AGENTE IA ──
+    // ── AGENTE IA CON LÍMITES POR PLAN ──
     async function sendMessage() {
         const input = document.getElementById('chat-input');
         const container = document.getElementById('chat-messages');
         const text = input.value.trim();
         if (!text) return;
 
-        if (planActual === 'gratis' && consultasUsadas >= 5) {
-            mostrarNotificacion("Límite de 5 consultas gratuitas alcanzado.", "error");
+        // LÍMITES SEGÚN EL PLAN ELEGIDO
+        let limiteMaximo = 5; 
+        if (planActual === 'estandar') limiteMaximo = 20;
+        if (planActual === 'premium') limiteMaximo = 99999; // Ilimitado
+
+        // Validación estricta del límite de consultas
+        if (consultasUsadas >= limiteMaximo && planActual !== 'premium') {
+            mostrarNotificacion("Límite de consultas alcanzado.", "error");
             
             const limiteDiv = document.createElement('div'); 
             limiteDiv.className = 'msg bot'; 
-            limiteDiv.innerHTML = "<b>Límite mensual de consultas alcanzado.</b><br>Para continuar operando con el Agente de Leyes 24/7, es indispensable realizar la actualización al Plan PREMIUM en su perfil.";
+            limiteDiv.innerHTML = `<b>Límite de ${limiteMaximo} consultas mensuales alcanzado.</b><br>Para continuar operando con el Agente de Leyes 24/7, es indispensable realizar la actualización al Plan superior en su perfil.`;
             container.appendChild(limiteDiv);
             container.scrollTop = container.scrollHeight;
             return; 
@@ -555,6 +643,7 @@
 
         } catch (err) {
             botDiv.innerText = "Error: Falla de conexión con la red de análisis legal.";
+            console.error("Falla en la transmisión de datos:", err);
         }
         container.scrollTop = container.scrollHeight;
     }
