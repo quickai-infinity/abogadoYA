@@ -14,23 +14,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --navy: #0A1628;
-      --navy-light: #121F36;
-      --navy-mid: #1A2A45;
-      --blue-trust: #2563EB;
-      --blue-glow: #3B82F6;
-      --blue-soft: #60A5FA;
-      --red-emergency: #EF4444;
-      --red-pulse: #DC2626;
-      --orange-alert: #F97316;
-      --green-safe: #22C55E;
-      --gold: #F59E0B;
+      --navy: #061121; --navy-light: #0B1D36;
+      --blue-trust: #1D4ED8; /* Confianza */
+      --purple-care: #9333EA; /* Empatía y Cuidado */
+      --yellow-fast: #FBBF24; /* Rapidez */
+      --green-safe: #16A34A; /* Seguridad */
+      --red-pulse: #DC2626; /* Emergencia activa */
       --white: #FFFFFF;
-      --gray-100: #F1F5F9;
-      --gray-200: #E2E8F0;
-      --gray-300: #CBD5E1;
-      --gray-400: #94A3B8;
-      --gray-500: #64748B;
+      --gray-400: #94A3B8; --gray-500: #64748B;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -125,16 +116,24 @@
       overflow: hidden;
     }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -200px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 800px;
-      height: 800px;
-      background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
-      pointer-events: none;
+    /* EFECTO FLUID AURA PARA EL FONDO DEL HERO */
+    .hero::before { 
+      content: ''; position: absolute; top: -300px; left: 50%; transform: translateX(-50%); 
+      width: 1000px; height: 1000px; 
+      background: radial-gradient(circle, rgba(147, 51, 234, 0.12) 0%, rgba(29, 78, 216, 0.08) 30%, transparent 70%); 
+      animation: fluid-aura 15s infinite ease-in-out; pointer-events: none;
+    }
+    @keyframes fluid-aura {
+      0%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      33% { opacity: 0.8; transform: translateX(-55%) translateY(-50px) scale(1.1); }
+      66% { opacity: 0.9; transform: translateX(-45%) translateY(50px) scale(0.95); }
+    }
+
+    /* ANIMACIÓN DE CARAS ALEGRES (HAPPIFY) */
+    .happify-emoji { position: absolute; font-size: 1.5rem; opacity: 0; pointer-events: none; z-index: 100; }
+    @keyframes floatUpEmoji {
+      0% { transform: translateY(0) scale(0.5); opacity: 1; }
+      100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
     }
 
     .hero-badge {
@@ -782,40 +781,29 @@
   </style>
 </head>
 <body>
-
-  <nav>
-  <a href="#" class="logo">
-    <div class="logo-icon">⚖</div>
-    <div class="logo-text">Abogado<span>YA</span></div>
-  </a>
-  <div style="display: flex; gap: 8px; align-items: center;">
-    <button onclick="showLogin()" class="btn-entrar-header">Entrar</button>
-    <a href="#registro" class="nav-cta-header">Registrarme</a>
-  </div>
-</nav>
+<nav>
+    <a href="#" class="logo">
+      <div class="logo-icon" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care)); color: var(--yellow-fast);">S</div>
+      <div class="logo-text">Secure<span style="color: var(--purple-care);">Flow</span></div>
+    </a>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button onclick="showLogin()" class="btn-entrar-header">Entrar</button>
+      <a href="#registro" class="nav-cta-header" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care));">Solicitar Demo</a>
+    </div>
+  </nav>
 
   <section class="hero">
     <div class="hero-badge">
-      <span></span>
-       Venezuela
+      <span style="background: var(--yellow-fast);"></span> Logística de Asistencia Auditada
     </div>
 
-    <h1>Un abogado en tu bolsillo <span class="highlight">cuando más lo necesitas</span></h1>
+    <h1>Infraestructura de Asistencia <span class="highl<h1>Infraestructura de Asistencia <span class="highlight" style="background: linear-gradient(135deg, var(--yellow-fast), var(--purple-care)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Ultra-Rápida</span></h1>ight" style="background: linear-gradient(135deg, var(--yellow-fast), var(--purple-care)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Ultra-Rápida</span></h1>
 
-    <p class="hero-sub">
-      Conecta con un abogado en segundos durante encuentros policiales en alcabalas y puntos de control. Videollamada en vivo, grabación en la nube y alertas a tus familiares.
-    </p>
+    <p class="hero-sub">Conecte a sus asegurados con grúas, mecánicos o peritos en segundos vía videollamada y GPS en vivo. Reduzca OPEX, evite fraudes y garantice un NPS extraordinario.</p>
 
     <div class="hero-buttons">
-      <a href="#registro" class="btn-primary" onclick="switchTab('ciudadano')">🛡️ Quiero Protegerme</a>
-      <a href="#registro" class="btn-secondary" onclick="switchTab('abogado')">⚖ Soy Abogado</a>
-      <a href="#registro" class="btn-secondary" onclick="switchTab('gruero')" style="border-color: var(--gold); color: var(--gold);">🚜 Soy Gruero</a>
-    </div>
-
-    <div class="hero-legal">
-      <p>
-        <strong>100% Legal.</strong> Respaldado por la Resolución Conjunta Nº 109 (Gaceta Oficial Nº 42.458) que garantiza tu derecho a grabar procedimientos policiales en puntos de control.
-      </p>
+      <a href="#registro" class="btn-primary" onclick="switchTab('ciudadano')" style="background: var(--purple-care);">📊 Solicitar Demo Corporativa</a>
+      <a href="#registro" class="btn-secondary" onclick="switchTab('gruero')">🏗️ Registrar Flota Local</a>
     </div>
   </section>
 
@@ -828,9 +816,9 @@
         </div>
         <div class="phone-logo-small">Abogado<span>YA</span></div>
         <div class="phone-tagline">Tu escudo legal 24/7</div>
-        <div class="emergency-btn">
+       <div class="emergency-btn" id="demo-emergency-btn" style="background: radial-gradient(circle at 40% 40%, #B86FF2, var(--purple-care), #7E22CE); box-shadow: 0 0 40px rgba(147, 51, 234, 0.4);">
           <div class="icon">🆘</div>
-          <div class="text">EMERGENCIA</div>
+          <div class="text" style="color: white;">ASISTENCIA</div>
         </div>
         <div class="phone-instruction">Toca para conectar con un abogado</div>
         <div class="phone-features">
