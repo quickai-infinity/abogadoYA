@@ -716,37 +716,70 @@
 
     // Inicializamos todo
     checkUser();
-    async function solicitarGrua() {
+   async function solicitarGrua() {
         if (!userLocation) {
             mostrarNotificacion("⚠️ No tenemos tu ubicación GPS. Actívala para pedir la grúa.", "error");
             return;
         }
 
-        // Definimos el costo según el plan
-        let costoSOS = 30; // Precio base
+        let costoSOS = 30; 
         if (planActual === 'estandar') costoSOS = 25;
         if (planActual === 'premium') costoSOS = 20;
 
         const confirmar = confirm(`¿Solicitar una grúa a tu ubicación actual?\nCosto estimado: $${costoSOS}.00`);
         
         if (confirmar) {
-            mostrarNotificacion("🛰️ Buscando la unidad más cercana...", "exito");
+            mostrarNotificacion("🛰️ Buscando unidad y creando enlace seguro...", "exito");
             
             try {
                 const { data: { user } } = await dbApp.auth.getUser();
                 
-                // Guardar la solicitud en la base de datos
-                const { error } = await dbApp.from('asistencias_viales').insert([{
+                // 1. Crear Sala de Video
+                const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
+                if (salaError || !salaData) throw new Error('Error al generar sala de video');
+                
+                // 2. Guardar la solicitud con el enlace de video
+                const { data: asistenciaRegistrada, error } = await dbApp.from('asistencias_viales').insert([{
                     ciudadano_id: user.id,
                     ubicacion_origen_lat: userLocation.lat,
                     ubicacion_origen_lng: userLocation.lng,
+                    sala_webrtc_url: salaData.url, // Guardamos la sala
                     estado: 'pendiente',
                     costo_final: costoSOS
-                }]);
+                }]).select('id').single();
 
                 if (error) throw error;
-                
-                alert("✅ Solicitud enviada. Un gruero se pondrá en contacto contigo por teléfono en breve.");
+                const asistenciaId = asistenciaRegistrada.id;
+
+                // 3. Escuchar en tiempo real cuando el gruero acepte
+                const canalGrua = dbApp.channel(`grua-${asistenciaId}`)
+                .on('postgres_changes', {
+                    event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${asistenciaId}`
+                }, async (payload) => {
+                    if (payload.new.estado === 'aceptada') {
+                        mostrarNotificacion("🚜 ¡Gruero en camino! Abriendo cámara...", "exito");
+                        dbApp.removeChannel(canalGrua);
+
+                        // 4. Abrir videollamada para el ciudadano
+                        const videoOverlay = document.createElement('div');
+                        videoOverlay.id = 'video-overlay-grua';
+                        videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:2000; background:#000; display:flex; flex-direction:column;';
+                        videoOverlay.innerHTML = `
+                            <div style="padding:15px; background:rgba(10,22,40,0.9); color:var(--gold); display:flex; justify-content:space-between; align-items:center;">
+                                <b>🚜 ASISTENCIA VIAL EN VIVO</b>
+                                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:bold; cursor:pointer;">Colgar</button>
+                            </div>
+                            <div id="daily-grua-frame" style="flex:1;"></div>
+                        `;
+                        document.body.appendChild(videoOverlay);
+
+                        const frame = window.DailyIframe.createFrame(document.getElementById('daily-grua-frame'), {
+                            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+                        });
+                        window._dailyGruaFrame = frame;
+                        await frame.join({ url: salaData.url, token: salaData.token });
+                    }
+                }).subscribe();
 
             } catch (err) {
                 console.error(err);
@@ -755,6 +788,12 @@
         }
     }
 
+    // Función para que el ciudadano cuelgue
+    function endGruaCall() {
+        if (window._dailyGruaFrame) { window._dailyGruaFrame.leave(); window._dailyGruaFrame.destroy(); window._dailyGruaFrame = null; }
+        const overlay = document.getElementById('video-overlay-grua');
+        if (overlay) overlay.remove();
+    }
   </script>
   <script src="agente-ia.js"></script>
 </body>
