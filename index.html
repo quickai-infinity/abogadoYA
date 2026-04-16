@@ -179,8 +179,8 @@
     .hero h1 .highlight {
       background: linear-gradient(135deg, var(--red-emergency), var(--orange-alert));
       -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
       background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .hero-sub {
@@ -598,10 +598,10 @@
       font-family: inherit;
       font-size: 0.9rem;
       transition: border-color 0.2s;
+      outline: none;
     }
 
     .form-group input:focus, .form-group select:focus {
-      outline: none;
       border-color: var(--blue-trust);
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
@@ -622,17 +622,8 @@
       transition: all 0.2s;
     }
 
-    .form-submit:hover { background: var(--blue-glow); transform: translateY(-1px); }
-
     .form-submit.red { background: var(--red-emergency); }
-    .form-submit.red:hover { background: #DC2626; }
-
-    .form-note {
-      font-size: 0.7rem;
-      color: var(--gray-500);
-      text-align: center;
-      margin-top: 0.75rem;
-    }
+    .form-submit:hover { filter: brightness(1.1); }
 
     .stats-bar {
       display: grid;
@@ -644,11 +635,13 @@
       text-align: center;
     }
 
+    /* FIX DEL ERROR AMARILLO AQUÍ */
     .stat h3 {
       font-size: 1.8rem;
       font-weight: 900;
       background: linear-gradient(135deg, var(--blue-soft), var(--blue-trust));
       -webkit-background-clip: text;
+      background-clip: text; 
       -webkit-text-fill-color: transparent;
     }
 
@@ -703,7 +696,7 @@
       .features-grid { grid-template-columns: 1fr 1fr; }
       .hero-buttons { 
         flex-direction: row; 
-        max-width: 700px; /* Le damos más ancho para que no se vean cuadrados */
+        max-width: 700px; 
         gap: 1rem;
       }
     }
@@ -723,8 +716,8 @@
       border-radius: 12px;
       padding: 4px;
       margin-bottom: 2rem;
-      gap: 4px; /* Espacio entre botones */
-      flex-wrap: wrap; /* Para que bajen si no caben en pantallas muy pequeñas */
+      gap: 4px;
+      flex-wrap: wrap; 
     }
 
     .tab-btn {
@@ -749,7 +742,7 @@
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    /* EFECTO TÁCTIL PROFESIONAL */
+    
     button, .nav-cta, .btn-primary, .btn-secondary, .form-submit, .tab-btn {
       cursor: pointer;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -760,7 +753,7 @@
       transform: scale(0.95);
       filter: brightness(0.8);
     }
-    /* MODAL DE LOGIN PROFESIONAL */
+    
     #login-modal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
       display: none; align-items: center; justify-content: center; z-index: 9999; padding: 1.5rem;
@@ -769,47 +762,23 @@
       background: var(--navy-light); width: 100%; max-width: 400px; padding: 2.5rem;
       border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
     }
-    /* AJUSTE DE LOGO MÁS PEQUEÑO */
-.logo-icon {
-  width: 28px;
-  height: 28px;
-  font-size: 14px;
-  border-radius: 8px;
-}
+    
+    .logo-icon { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
+    .logo-text { font-size: 1rem; letter-spacing: -0.3px; }
 
-.logo-text {
-  font-size: 1rem; /* Antes era 1.25rem */
-  letter-spacing: -0.3px;
-}
+    .btn-entrar-header {
+      background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white;
+      padding: 0.4rem 0.9rem; border-radius: 8px; font-weight: 600; font-size: 0.75rem;
+      cursor: pointer; transition: all 0.2s;
+    }
 
-/* BOTONES DE CABECERA COMPACTOS */
-.btn-entrar-header {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 0.4rem 0.9rem; /* Reducido para ser más discreto */
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.75rem; /* Letra más pequeña y profesional */
-  cursor: pointer;
-  transition: all 0.2s;
-}
+    .nav-cta-header {
+      background: var(--blue-trust); color: white; padding: 0.4rem 0.9rem;
+      border-radius: 8px; font-weight: 600; font-size: 0.75rem; text-decoration: none;
+      transition: all 0.2s;
+    }
 
-.nav-cta-header {
-  background: var(--blue-trust);
-  color: white;
-  padding: 0.4rem 0.9rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-/* EFECTO DE PULSACIÓN EN CABECERA */
-.btn-entrar-header:active, .nav-cta-header:active {
-  transform: scale(0.94);
-}
+    .btn-entrar-header:active, .nav-cta-header:active { transform: scale(0.94); }
   </style>
 </head>
 <body>
@@ -1114,7 +1083,9 @@
         <h3 style="color:#22C55E;margin-bottom:0.5rem;">¡Registro exitoso!</h3>
         <p style="font-size:0.85rem;color:#94A3B8;">Validaremos tus credenciales pronto.</p>
       </div>
-    </div> <div id="tab-gruero" class="tab-content" style="display:none;">
+    </div>
+    
+    <div id="tab-gruero" class="tab-content" style="display:none;">
       <div class="form-container" id="form-gruero">
         <h3>Registro de Asistencia Vial</h3>
         <p class="form-sub">Activa tu unidad para recibir solicitudes de grúa con GPS.</p>
@@ -1125,7 +1096,6 @@
         <div class="form-group"><label>Teléfono / WhatsApp</label><input type="tel" id="g-telefono" placeholder="+58"></div>
         <button class="form-submit" onclick="submitGruero()" style="background:var(--gold); color:var(--navy); font-weight:800;">🚜 Activar mi Unidad</button>
       </div>
-    </div>
     </div>
   </section>
 
@@ -1158,46 +1128,60 @@
 
   <div style="position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(100px);background:#22C55E;color:#0A1628;padding:0.75rem 1.5rem;border-radius:12px;font-weight:700;font-size:0.85rem;z-index:10000;transition:transform 0.4s ease;box-shadow:0 8px 32px rgba(34,197,94,0.4);white-space:nowrap;" id="toast"></div>
 
+  <div id="login-modal">
+    <div class="modal-content">
+      <h2 style="text-align:center; margin-bottom:1.5rem; font-weight:800;">Iniciar Sesión</h2>
+      <div class="form-group">
+        <label>Correo Electrónico</label>
+        <input type="email" id="login-email" placeholder="tu@correo.com">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••">
+      </div>
+      <button class="form-submit" onclick="login()" style="background:var(--blue-trust); margin-top:1rem;">Entrar ahora</button>
+      <button onclick="hideLogin()" style="width:100%; background:none; border:none; color:#64748B; margin-top:1.2rem; font-size:0.9rem; cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <script>
-    async function verificarBiometria() {
-  // Comprobar si el dispositivo soporta biometría
-  if (window.PublicKeyCredential) {
-    const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if (disponible) {
-      try {
-        // Esto lanza el FaceID / Huella del sistema
-        // Nota: En producción, esto se vincula a un desafío enviado desde Supabase
-        console.log("Invocando biometría...");
-        // Aquí iría la lógica de WebAuthn para validar la identidad
-      } catch (e) {
-        console.error("Error en biometría:", e);
-      }
-    }
-  }
-}
     const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
     
     const dbClient = window.supabase.createClient(API_URL, API_KEY);
 
-    // FUNCIÓN DE REDIRECCIÓN AUTOMÁTICA
-    async function checkExistingSession() {
-  const { data: { session } } = await dbClient.auth.getSession();
-  if (session) {
-    // Leemos el tipo de usuario guardado en Supabase
-    const userType = session.user.user_metadata?.tipo;
-    if (userType === 'abogado') {
-      window.location.href = 'panel-abogado.html';
-    } else {
-      window.location.href = 'app.html';
+    async function verificarBiometria() {
+      if (window.PublicKeyCredential) {
+        const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (disponible) {
+          try {
+            console.log("Invocando biometría...");
+          } catch (e) {
+            console.error("Error en biometría:", e);
+          }
+        }
+      }
     }
-  }
-}
+
+    // EL FIX PRINCIPAL ESTÁ AQUÍ (Soporte para Gruero)
+    async function checkExistingSession() {
+      const { data: { session } } = await dbClient.auth.getSession();
+      if (session) {
+        const userType = session.user.user_metadata?.tipo;
+        if (userType === 'abogado') {
+          window.location.href = 'panel-abogado.html';
+        } else if (userType === 'gruero') {
+          window.location.href = 'panel-gruero.html';
+        } else {
+          window.location.href = 'app.html';
+        }
+      }
+    }
     checkExistingSession();
 
-    function showToast(msg, isError) {
+    function showToast(msg, isError = false) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.style.background = isError ? '#EF4444' : '#22C55E';
@@ -1206,20 +1190,22 @@
       setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(100px)'; }, 3500);
     }
 
-    // LÓGICA DE LOGIN
-    function showLogin() {
-      const email = prompt("Email:");
-      if (!email) return;
-      const password = prompt("Contraseña:");
-      if (!password) return;
-      login(email, password);
-    }
+    function showLogin() { document.getElementById('login-modal').style.display = 'flex'; }
+    function hideLogin() { document.getElementById('login-modal').style.display = 'none'; }
 
-   async function login(email, password) {
-      showToast('Entrando...', false);
+    async function login() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-pass').value;
+      if(!email || !password) return showToast("Completa los datos", true);
+      
+      const btn = document.querySelector('#login-modal .form-submit');
+      btn.innerText = 'Verificando...';
+      
       const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
+      
       if (error) {
         showToast(error.message, true);
+        btn.innerText = 'Entrar ahora';
       } else {
         const userType = data.user.user_metadata?.tipo;
         if (userType === 'abogado') {
@@ -1231,7 +1217,8 @@
         }
       }
     }
-   function switchTab(tab) {
+
+    function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
       
@@ -1244,6 +1231,7 @@
         buttons[2].classList.add('active'); document.getElementById('tab-gruero').style.display = 'block';
       }
     }
+
     async function submitCiudadano() {
       const nombre = document.getElementById('c-nombre').value.trim();
       const email = document.getElementById('c-email').value.trim();
@@ -1315,7 +1303,6 @@
           .upload(filePath, file);
         if (uploadError) throw uploadError;
 
-        // ... (código previo de submitAbogado)
         await dbClient
           .from('abogados')
           .update({ documento_colegiatura_url: filePath })
@@ -1324,13 +1311,50 @@
         document.getElementById('form-abogado').style.display = 'none';
         document.getElementById('success-abogado').style.display = 'block';
         showToast('✅ Registro exitoso. Entrando...');
-        // REDIRECCIÓN CORREGIDA:
         setTimeout(() => window.location.href = 'panel-abogado.html', 1500);
       } catch (err) {
         showToast(err.message, true);
         btn.disabled = false; btn.textContent = '⚖ Crear cuenta';
       }
-}
+    }
+
+    async function submitGruero() {
+        const nombre = document.getElementById('g-nombre').value.trim();
+        const email = document.getElementById('g-email').value.trim();
+        const password = document.getElementById('g-password').value;
+        const placa = document.getElementById('g-placa').value.trim();
+        const telefono = document.getElementById('g-telefono').value.trim();
+
+        if(!nombre || !email || !password || !placa) return showToast("Completa los datos", true);
+
+        const btn = document.querySelector('#tab-gruero .form-submit');
+        btn.innerText = 'Creando unidad...';
+        btn.disabled = true;
+
+        try {
+            const { data: authData, error: authError } = await dbClient.auth.signUp({
+                email, password,
+                options: { data: { tipo: 'gruero', nombre_completo: nombre, placa: placa, telefono: telefono } }
+            });
+            if (authError) throw authError;
+            
+            const { error: insertError } = await dbClient.from('grueros').insert([{ 
+                auth_id: authData.user.id, 
+                nombre_completo: nombre, 
+                placa_vehiculo: placa, 
+                telefono: telefono 
+            }]);
+            
+            if (insertError) throw insertError; 
+
+            showToast("✅ Registro de unidad exitoso", false);
+            setTimeout(() => window.location.href = 'panel-gruero.html', 1500);
+        } catch (err) { 
+            showToast("Error: " + err.message, true); 
+            btn.innerText = '🚜 Activar mi Unidad';
+            btn.disabled = false;
+        }
+    }
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -1347,94 +1371,6 @@
       el.style.transition = 'all 0.6s ease';
       observer.observe(el);
     });
-    function showLogin() { document.getElementById('login-modal').style.display = 'flex'; }
-    function hideLogin() { document.getElementById('login-modal').style.display = 'none'; }
-
-    async function login() {
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-pass').value;
-      if(!email || !password) return alert("Completa los datos");
-      
-      const btn = document.querySelector('#login-modal .form-submit');
-      btn.innerText = 'Verificando...';
-      
-      const { data, error } = await dbClient.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        alert("Error: " + error.message);
-        btn.innerText = 'Entrar ahora';
-      } else {
-        // Obtenemos el tipo de usuario guardado en los metadatos de Supabase
-        const userType = data.user.user_metadata?.tipo;
-
-        // REDIRECCIÓN SEGÚN EL ROL:
-        if (userType === 'abogado') {
-          window.location.href = 'panel-abogado.html';
-        } else if (userType === 'gruero') {
-          // ESTA ES LA LÍNEA NUEVA QUE AGREGAMOS
-          window.location.href = 'panel-gruero.html';
-        } else {
-          window.location.href = 'app.html';
-        }
-      }
-    }
-async function submitGruero() {
-        const nombre = document.getElementById('g-nombre').value.trim();
-        const email = document.getElementById('g-email').value.trim();
-        const password = document.getElementById('g-password').value;
-        const placa = document.getElementById('g-placa').value.trim();
-        const telefono = document.getElementById('g-telefono').value.trim();
-
-        if(!nombre || !email || !password || !placa) return showToast("Completa los datos", true);
-
-        // Cambiamos el botón para saber que está trabajando
-        const btn = document.querySelector('#tab-gruero .form-submit');
-        btn.innerText = 'Creando unidad...';
-        btn.disabled = true;
-
-        try {
-            // 1. Crear cuenta en Auth
-            const { data: authData, error: authError } = await dbClient.auth.signUp({
-                email, password,
-                options: { data: { tipo: 'gruero', nombre_completo: nombre, placa: placa, telefono: telefono } }
-            });
-            if (authError) throw authError;
-            
-            // 2. Guardar en la tabla grueros (AHORA SÍ CAPTURAMOS EL ERROR)
-            const { error: insertError } = await dbClient.from('grueros').insert([{ 
-                auth_id: authData.user.id, 
-                nombre_completo: nombre, 
-                placa_vehiculo: placa, 
-                telefono: telefono 
-            }]);
-            
-            // Si la tabla rechaza el dato, lanzamos el error
-            if (insertError) throw insertError; 
-
-            showToast("✅ Registro de unidad exitoso", false);
-            setTimeout(() => window.location.href = 'panel-gruero.html', 1500);
-        } catch (err) { 
-            // Si falla, mostramos el error real
-            showToast("Error: " + err.message, true); 
-            btn.innerText = '🚜 Activar mi Unidad';
-            btn.disabled = false;
-        }
-    }
   </script>
-  <div id="login-modal">
-    <div class="modal-content">
-      <h2 style="text-align:center; margin-bottom:1.5rem; font-weight:800;">Iniciar Sesión</h2>
-      <div class="form-group">
-        <label>Correo Electrónico</label>
-        <input type="email" id="login-email" placeholder="tu@correo.com">
-      </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input type="password" id="login-pass" placeholder="••••••••">
-      </div>
-      <button class="form-submit" onclick="login()" style="background:var(--blue-trust); margin-top:1rem;">Entrar ahora</button>
-      <button onclick="hideLogin()" style="width:100%; background:none; border:none; color:#64748B; margin-top:1.2rem; font-size:0.9rem; cursor:pointer;">Cancelar</button>
-    </div>
-  </div>
 </body>
 </html>
