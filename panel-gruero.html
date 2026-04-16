@@ -193,6 +193,36 @@
         const style = document.createElement('style');
         style.innerHTML = `@keyframes pulse { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }`;
         document.head.appendChild(style);
+        // 3. ESCUCHAR SOLICITUDES EN TIEMPO REAL
+        function iniciarRadarGruas() {
+            window.dbApp.channel('alertas_viales')
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'asistencias_viales',
+                filter: 'estado=eq.pendiente' // Solo avisa si es una emergencia nueva
+            }, (payload) => {
+                console.log("¡Alarma! Nueva solicitud:", payload);
+                
+                // Solo le suena al gruero si está "En Servicio"
+                if (isOnline) {
+                    // Muestra la caja amarilla de alerta
+                    document.getElementById('alerta-servicio').style.display = 'block';
+                    document.getElementById('distancia-cliente').innerText = "📍 ¡Un ciudadano solicitó grúa cerca de tu ubicación!";
+                    
+                    // Hacer que el teléfono/PC suene (Tipo alerta Uber)
+                    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+                    audio.play().catch(e => console.log("El navegador bloqueó el sonido automático"));
+                    
+                    // Hacer vibrar el celular del gruero si lo soporta
+                    if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                }
+            })
+            .subscribe();
+        }
+
+        // Encendemos el radar apenas carga la página
+        iniciarRadarGruas();
     </script>
 </body>
 </html>
