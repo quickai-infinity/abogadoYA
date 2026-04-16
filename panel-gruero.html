@@ -6,57 +6,193 @@
     <title>AbogadoYA — Panel Gruero</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --navy: #0A1628; --yellow-grua: #FACC15; --green-active: #22C55E; }
-        body { background: var(--navy); color: white; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
-        .header { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
-        .radar-box { height: 300px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(250, 204, 21, 0.05) 0%, transparent 70%); }
-        .btn-status { width: 80%; padding: 1.2rem; border-radius: 15px; border: none; font-weight: 800; font-size: 1.1rem; cursor: pointer; }
-        .online { background: var(--green-active); color: var(--navy); }
+        :root { 
+            --navy: #0A1628; 
+            --navy-light: #121F36; 
+            --yellow-grua: #FACC15; 
+            --green-active: #22C55E; 
+            --gray-400: #94A3B8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--navy); color: white; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* CABECERA CORREGIDA PARA PC Y MÓVIL */
+        header { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); background: var(--navy); z-index: 10; }
+        .logo-small { font-weight: 800; font-size: 1rem; }
+        .logo-small span { color: var(--yellow-grua); }
+        .btn-exit { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-exit:hover { background: rgba(255,255,255,0.1); }
+
+        .main-content { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 600px; margin: 0 auto; width: 100%; }
+        
+        .radar-box { height: 250px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(250, 204, 21, 0.08) 0%, transparent 70%); border-radius: 20px; margin-bottom: 2rem; border: 1px solid rgba(250, 204, 21, 0.1); }
+        
+        .btn-status { width: 100%; padding: 1.2rem; border-radius: 15px; border: none; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .online { background: var(--green-active); color: var(--navy); box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); }
         .offline { background: #334155; color: white; }
+        .btn-status:active { transform: scale(0.96); }
+
+        /* CHAT IA */
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 180px; max-height: 250px; }
+        .msg { padding: 12px 16px; border-radius: 18px; font-size: 0.85rem; max-width: 85%; line-height: 1.4; }
+        .msg.bot { background: var(--navy-light); align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg.user { background: rgba(250, 204, 21, 0.2); color: var(--yellow-grua); align-self: flex-end; border-bottom-right-radius: 2px; border: 1px solid rgba(250, 204, 21, 0.3); }
+        
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--green-active); color: var(--navy); padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; z-index: 9999; transition: transform 0.3s; white-space: nowrap; }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div style="font-weight: 800;">AbogadoYA <span>| ASISTENCIA VIAL</span></div>
-        <button onclick="logout()" style="background:none; border:1px solid white; color:white; border-radius:5px;">Salir</button>
+
+    <header>
+        <div class="logo-small">Abogado<span>YA</span> <span style="font-size: 0.6rem; color: var(--gray-400); font-weight: normal; margin-left: 5px;">| VIAL</span></div>
+        <button class="btn-exit" onclick="logout()">Salir</button>
     </header>
 
-    <main style="padding: 1.5rem;">
-        <div id="status-card" style="text-align:center;">
-            <h2 id="txt-status">Fuera de Servicio</h2>
-            <button id="btn-toggle" class="btn-status offline" onclick="toggleServicio()">ACTIVAR GUARDIA VIAL</button>
+    <main class="main-content">
+        
+        <div style="text-align:center; margin-bottom: 1.5rem;">
+            <h2 id="txt-bienvenida" style="font-size: 1.2rem; margin-bottom: 5px;">Cargando perfil...</h2>
+            <p id="txt-status" style="color: var(--gray-400); font-size: 0.85rem;">Fuera de Servicio</p>
         </div>
 
-        <div id="alerta-servicio" style="display:none; background:var(--yellow-grua); color:black; padding:1.5rem; border-radius:20px; margin-top:2rem;">
-            <h3>⚠️ NUEVO SERVICIO</h3>
-            <p id="distancia-cliente">A 2.5 km de tu posición</p>
-            <button onclick="aceptarServicio()" style="width:100%; padding:1rem; background:black; color:white; border:none; border-radius:10px; font-weight:bold;">ACEPTAR Y VER RUTA</button>
+        <div class="radar-box" id="radar-visual">
+            <span style="font-size: 4rem; opacity: 0.8;" id="radar-icon">💤</span>
         </div>
 
-        <div id="chat-ia" style="margin-top:3rem; background:rgba(255,255,255,0.03); padding:1rem; border-radius:15px;">
-            <h4 style="margin:0 0 10px 0;">🧠 Asistente de Operaciones</h4>
-            <div id="chat-messages" style="height:150px; overflow-y:auto; font-size:0.8rem; margin-bottom:10px;">
-                <p>Hola. Puedo ayudarte con rutas, reglamentos de carga o reportes de fallas.</p>
+        <button id="btn-toggle" class="btn-status offline" onclick="toggleServicio()">ACTIVAR GUARDIA VIAL</button>
+
+        <div id="alerta-servicio" style="display:none; background:var(--yellow-grua); color:var(--navy); padding:1.5rem; border-radius:16px; margin-top:2rem; box-shadow: 0 10px 25px rgba(250, 204, 21, 0.3);">
+            <h3 style="font-weight: 900; margin-bottom: 5px;">⚠️ NUEVA SOLICITUD</h3>
+            <p id="distancia-cliente" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 15px;">Ubicación recibida. Calculando ruta...</p>
+            <button onclick="aceptarServicio()" style="width:100%; padding:1rem; background:var(--navy); color:white; border:none; border-radius:10px; font-weight:bold; cursor: pointer;">ACEPTAR SERVICIO</button>
+        </div>
+
+        <div id="chat-ia" style="margin-top:3rem; background:rgba(255,255,255,0.02); padding:1.5rem; border-radius:16px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="margin:0 0 15px 0; color: var(--yellow-grua); display: flex; align-items: center; gap: 8px;">🧠 Asistente Operativo IA</h4>
+            <div id="chat-messages">
+                <div class="msg bot">Hola, colega. Te apoyo con dudas de tránsito, leyes de carga o reportes al seguro. ¿Qué necesitas?</div>
             </div>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="chat-input" placeholder="Duda sobre el servicio..." style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:8px; border-radius:8px;">
-                <button onclick="sendMessage()" style="background:var(--yellow-grua); border:none; border-radius:8px; padding:0 15px;">🚀</button>
+            <div style="display:flex; gap:8px; margin-top: 10px;">
+                <input type="text" id="chat-input" placeholder="Escribe tu duda..." style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:10px; outline: none; font-family: inherit;">
+                <button onclick="sendMessage()" style="background:var(--yellow-grua); color: var(--navy); border:none; border-radius:10px; padding:0 20px; font-weight: bold; cursor: pointer;">🚀</button>
             </div>
         </div>
     </main>
 
+    <div id="toast" class="toast"></div>
+
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="agente-ia.js"></script>
     <script>
-        // Lógica de Supabase e intervalos de GPS cada 30 segundos
+        const API_URL = 'https://prsopicfepfpcplzwgxr.supabase.co';
+        const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByc29waWNmZXBmcGNwbHp3Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NTQ1MDIsImV4cCI6MjA5MDMzMDUwMn0.-0Y_P88_oDkgoD3EQb8109PWlGF7PQsC2RLJ4q5gnAQ';
+        window.dbApp = window.supabase.createClient(API_URL, API_KEY);
+
+        let currentUser = null;
+        let miGrueroId = null;
         let isOnline = false;
-        function toggleServicio() {
+        let gpsWatchId = null;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.transform = 'translateX(-50%) translateY(0)';
+            setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(100px)'; }, 3000);
+        }
+
+        // 1. CARGAR DATOS DEL GRUERO AL INICIAR
+        async function checkUser() {
+            const { data: { user } } = await window.dbApp.auth.getUser();
+            if (!user) { window.location.href = 'index.html'; return; }
+            currentUser = user;
+
+            // Buscamos su ID en la tabla de grueros
+            const { data: perfil } = await window.dbApp.from('grueros').select('*').eq('auth_id', user.id).maybeSingle();
+            
+            if (perfil) {
+                miGrueroId = perfil.id;
+                document.getElementById('txt-bienvenida').innerText = `Hola, ${perfil.nombre_completo.split(' ')[0]}`;
+                document.getElementById('txt-status').innerText = `Placa: ${perfil.placa_vehiculo} - Fuera de servicio`;
+            } else {
+                alert("Error: No se encontró tu perfil de gruero. Contacta a soporte.");
+            }
+        }
+
+        // 2. LÓGICA DE GPS Y CAMBIO DE ESTADO
+        async function toggleServicio() {
+            if (!miGrueroId) { showToast("Cargando perfil, espera..."); return; }
+
             isOnline = !isOnline;
             const btn = document.getElementById('btn-toggle');
-            btn.innerText = isOnline ? "EN SERVICIO (GPS ACTIVO)" : "ACTIVAR GUARDIA VIAL";
-            btn.className = isOnline ? "btn-status online" : "btn-status offline";
-            if(isOnline) iniciarRastreoGPS();
+            const statusTxt = document.getElementById('txt-status');
+            const radarIcon = document.getElementById('radar-icon');
+
+            if (isOnline) {
+                // Activar Guardia
+                if (!navigator.geolocation) {
+                    alert("Tu dispositivo no soporta GPS. No puedes recibir servicios.");
+                    isOnline = false; return;
+                }
+
+                btn.innerText = "EN SERVICIO (GPS ACTIVO)";
+                btn.className = "btn-status online";
+                radarIcon.innerText = "🛰️";
+                radarIcon.style.animation = "pulse 2s infinite";
+                statusTxt.innerText = "Buscando satélites...";
+
+                // Pedir GPS e inyectar en Supabase
+                gpsWatchId = navigator.geolocation.watchPosition(
+                    async (pos) => {
+                        statusTxt.innerText = "Guardia Activa - Esperando servicios...";
+                        
+                        // Guardar estado y GPS en la tabla 'unidades_grua'
+                        await window.dbApp.from('unidades_grua').upsert({
+                            gruero_id: miGrueroId,
+                            estado: 'disponible',
+                            lat_actual: pos.coords.latitude,
+                            lng_actual: pos.coords.longitude,
+                            ultima_actualizacion: new Date().toISOString()
+                        }, { onConflict: 'gruero_id' });
+                        
+                    },
+                    (err) => {
+                        showToast("Activa el GPS de tu teléfono.");
+                        toggleServicio(); // Apagar si falla el GPS
+                    },
+                    { enableHighAccuracy: true, maximumAge: 10000 }
+                );
+
+                showToast("Guardia Iniciada. Transmitiendo GPS.");
+
+            } else {
+                // Desactivar Guardia
+                btn.innerText = "ACTIVAR GUARDIA VIAL";
+                btn.className = "btn-status offline";
+                radarIcon.innerText = "💤";
+                radarIcon.style.animation = "none";
+                statusTxt.innerText = "Fuera de Servicio";
+
+                if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+                
+                // Actualizar a desconectado en Supabase
+                await window.dbApp.from('unidades_grua').update({ estado: 'desconectado' }).eq('gruero_id', miGrueroId);
+                showToast("Guardia Finalizada.");
+            }
         }
+
+        async function logout() { 
+            if(isOnline) await toggleServicio(); // Apagar antes de salir
+            await window.dbApp.auth.signOut(); 
+            window.location.href = 'index.html'; 
+        }
+
+        // Inicializar
+        checkUser();
+
+        // Estilos extra de animación
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes pulse { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }`;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
