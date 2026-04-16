@@ -1378,7 +1378,7 @@
         }
       }
     }
-    async function submitGruero() {
+async function submitGruero() {
         const nombre = document.getElementById('g-nombre').value.trim();
         const email = document.getElementById('g-email').value.trim();
         const password = document.getElementById('g-password').value;
@@ -1387,24 +1387,38 @@
 
         if(!nombre || !email || !password || !placa) return showToast("Completa los datos", true);
 
+        // Cambiamos el botón para saber que está trabajando
+        const btn = document.querySelector('#tab-gruero .form-submit');
+        btn.innerText = 'Creando unidad...';
+        btn.disabled = true;
+
         try {
-            const { data, error } = await dbClient.auth.signUp({
+            // 1. Crear cuenta en Auth
+            const { data: authData, error: authError } = await dbClient.auth.signUp({
                 email, password,
                 options: { data: { tipo: 'gruero', nombre_completo: nombre, placa: placa, telefono: telefono } }
             });
-            if (error) throw error;
+            if (authError) throw authError;
             
-            // Guardar en la tabla de grueros que creamos
-            await dbClient.from('grueros').insert([{ 
-                auth_id: data.user.id, 
+            // 2. Guardar en la tabla grueros (AHORA SÍ CAPTURAMOS EL ERROR)
+            const { error: insertError } = await dbClient.from('grueros').insert([{ 
+                auth_id: authData.user.id, 
                 nombre_completo: nombre, 
                 placa_vehiculo: placa, 
                 telefono: telefono 
             }]);
+            
+            // Si la tabla rechaza el dato, lanzamos el error
+            if (insertError) throw insertError; 
 
             showToast("✅ Registro de unidad exitoso", false);
             setTimeout(() => window.location.href = 'panel-gruero.html', 1500);
-        } catch (err) { showToast(err.message, true); }
+        } catch (err) { 
+            // Si falla, mostramos el error real
+            showToast("Error: " + err.message, true); 
+            btn.innerText = '🚜 Activar mi Unidad';
+            btn.disabled = false;
+        }
     }
   </script>
   <div id="login-modal">
