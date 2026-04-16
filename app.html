@@ -677,7 +677,7 @@
 
     // ── FUNCIONES DE ADMIN Y BILLETERA ──
     async function verificarSiEsAdmin(userId) {
-        const { data: perfil } = await dbApp.from('usuarios').select('rol').eq('auth_id', userId).single();
+        const { data: perfil } = await dbApp.from('usuarios').select('rol').eq('auth_id', userId).maybeSingle();
         
         if (perfil && perfil.rol === 'admin') {
             const btnAdmin = document.createElement('button');
