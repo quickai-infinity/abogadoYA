@@ -269,18 +269,17 @@
             document.getElementById('radar-visual').style.display = 'none';
             document.getElementById('btn-toggle').style.display = 'none';
             
+            // 3. Conectamos la videollamada en pantalla completa
             const videoCont = document.getElementById('video-container-grua');
-            videoCont.style.display = 'flex';
-
-            // 3. Conectamos la videollamada
+            videoCont.style.display = 'flex'; // Mostramos el modal a pantalla completa
+            
             if (salaGruaUrl) {
-                gruaCallFrame = window.DailyIframe.createFrame(videoCont, {
+                gruaCallFrame = window.DailyIframe.createFrame(document.getElementById('daily-frame-gruero'), {
                     iframeStyle: { width: '100%', height: '100%', border: 'none' },
-                    showLeaveButton: true
+                    showLeaveButton: false
                 });
                 await gruaCallFrame.join({ url: salaGruaUrl });
-            }
-        }
+            }}
     </script>
 </body>
 </html>
