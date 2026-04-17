@@ -208,52 +208,81 @@
             abrirSalaInteractivaGruero();
         }
 
+       // MOTOR DE MAPAS EN VIVO (SIN API KEYS)
+        let mapVial = null;
+        let markerCiudadano = null;
+        let markerGruero = null;
+
+        function cargarMapa(callback) {
+            if (window.L) { callback(); return; }
+            const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
+            const script = document.createElement('script'); script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.onload = callback; document.head.appendChild(script);
+        }
+
         function abrirSalaInteractivaGruero() {
+            // ¡AQUÍ ESTABA EL GRAN ERROR! Faltaba heredar la URL de la sala correctamente:
+            vialActualUrl = salaGruaUrl; 
+
             const overlay = document.createElement('div');
             overlay.id = 'video-overlay-gruero';
             overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
             
             overlay.innerHTML = `
+                <style>.map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); }</style>
+                
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
-                    <div>
-                        <p style="font-size:0.6rem; color:var(--gray-400);">ESTADO DEL SERVICIO</p>
-                        <h3 style="color:var(--green-active); font-size:0.9rem;">✅ EN RUTA AL CLIENTE</h3>
-                    </div>
+                    <div><p style="font-size:0.6rem; color:var(--gray-400);">ESTADO DEL SERVICIO</p><h3 style="color:var(--green-active); font-size:0.9rem;">✅ EN RUTA AL CLIENTE</h3></div>
                     <button onclick="finalizarServicioGrua()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">FINALIZAR</button>
                 </div>
 
-                <div id="vial-video-container-gruero" style="height:35%; width:100%; background:#000; display:none;"></div>
+                <div id="vial-video-container-gruero" style="height:40%; width:100%; background:#000; display:none;"></div>
                 
-                <div id="vial-map-placeholder-gruero" style="height:35%; width:100%; background:#111; display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,0.1);">
-                    <p style="color:var(--gray-500); font-size:0.8rem;">📍 Conectado. Compartiendo GPS con el ciudadano...</p>
+                <div id="vial-map-placeholder-gruero" style="height:40%; width:100%; position:relative; z-index:1;">
+                    <div id="mapa-realtime-gruero" style="width:100%; height:100%; background:#111; display:flex; align-items:center; justify-content:center;"><p style="color:gray;">Cargando mapa en vivo...</p></div>
                 </div>
 
                 <div id="vial-chat-box-gruero" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);">
-                    <div class="msg bot" style="background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3); max-width:90%; align-self:flex-start; padding:12px; border-radius:12px;">
-                        📡 Sala conectada. Ya puedes escribirle al cliente.
-                    </div>
+                    <div class="msg bot" style="background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3); align-self:flex-start; padding:12px; border-radius:12px;">📡 Sala conectada. GPS y Chat activos.</div>
                 </div>
 
                 <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
-                    <button id="btn-video-gruero" onclick="toggleVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer;">📹 CONECTAR VIDEO</button>
+                    <button id="btn-video-gruero" onclick="toggleVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer;">📹 VIDEO</button>
                     <input type="text" id="input-chat-gruero" placeholder="Escribe al cliente..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;">
                     <button onclick="enviarMensajeGruero()" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white; cursor:pointer;">🚀</button>
                 </div>
             `;
             document.body.appendChild(overlay);
 
+            // INICIAR MAPA REAL
+            cargarMapa(async () => {
+                if (mapVial) mapVial.remove();
+                const { data: asistencia } = await window.dbApp.from('asistencias_viales').select('*').eq('id', currentAsistenciaId).single();
+                
+                mapVial = L.map('mapa-realtime-gruero').setView([asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapVial);
+                
+                const iconC = L.divIcon({ html: '👤', className: 'map-icon-marker' });
+                markerCiudadano = L.marker([asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng], {icon: iconC}).addTo(mapVial).bindPopup('Cliente');
+                
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const iconG = L.divIcon({ html: '🚜', className: 'map-icon-marker' });
+                    markerGruero = L.marker([pos.coords.latitude, pos.coords.longitude], {icon: iconG}).addTo(mapVial).bindPopup('Tú');
+                    const group = new L.featureGroup([markerCiudadano, markerGruero]);
+                    mapVial.fitBounds(group.getBounds(), {padding: [30, 30]});
+                });
+            });
+
             iniciarChatGruero(currentAsistenciaId);
         }
 
-        // FUNCION PARA QUE EL GRUERO ENCIENDA LA CÁMARA
-       // EL NUEVO INTERRUPTOR DE VIDEO (LADO GRUERO)
-      let isVideoActiveGruero = false;
+        let isVideoActiveGruero = false;
         async function toggleVideoGruero() {
             const btnVideo = document.getElementById('btn-video-gruero');
             const mapCont = document.getElementById('vial-map-placeholder-gruero');
             const vidCont = document.getElementById('vial-video-container-gruero');
 
-            if (!vialActualUrl) return;
+            if (!vialActualUrl) { alert("Error: Enlace de video no disponible."); return; }
 
             if (!isVideoActiveGruero) {
                 mapCont.style.display = 'none';
@@ -272,21 +301,20 @@
                     btnVideo.innerText = "📴 APAGAR VIDEO";
                     isVideoActiveGruero = true;
                 } catch(e) {
-                    // FALLBACK EXTERNO
-                    alert("Navegador estricto detectado. Abriendo sala de video externa...");
                     window.open(vialActualUrl, '_blank');
-                    btnVideo.innerText = "📹 VIDEO ACTIVO (EXTERNO)";
+                    btnVideo.innerText = "📹 ACTIVO (EXTERNO)";
                 }
             } else {
                 if (gruaCallFrame) await gruaCallFrame.leave();
                 vidCont.style.display = 'none';
-                mapCont.style.display = 'flex';
+                mapCont.style.display = 'block'; // Volvemos a mostrar el mapa real
                 btnVideo.style.background = "var(--gold)";
                 btnVideo.style.color = "var(--navy)";
                 btnVideo.innerText = "📹 CONECTAR VIDEO";
                 isVideoActiveGruero = false;
             }
         }
+
         function iniciarChatGruero(asistenciaId) {
             if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
             chatChannelGruero = window.dbApp.channel(`chat-gruero-${asistenciaId}`)
@@ -295,12 +323,7 @@
                 const isMe = payload.new.emisor_id === currentUser.id;
                 const chatBox = document.getElementById('vial-chat-box-gruero');
                 const msgDiv = document.createElement('div');
-                
-                if(isMe) {
-                    msgDiv.style.cssText = "background:rgba(250, 204, 21, 0.2); color:var(--yellow-grua); align-self:flex-end; border:1px solid rgba(250, 204, 21, 0.3); border-radius:18px 18px 2px 18px; padding:12px 16px; max-width:85%; font-size:0.85rem;";
-                } else {
-                    msgDiv.style.cssText = "background:var(--navy-light); color:white; align-self:flex-start; border-radius:18px 18px 18px 2px; padding:12px 16px; max-width:85%; border:1px solid rgba(255,255,255,0.1); font-size:0.85rem;";
-                }
+                msgDiv.style.cssText = isMe ? "background:rgba(250,204,21,0.2); color:var(--yellow-grua); align-self:flex-end; padding:10px 15px; border-radius:15px; border:1px solid rgba(250,204,21,0.3);" : "background:var(--navy); color:white; align-self:flex-start; padding:10px 15px; border-radius:15px; border:1px solid rgba(255,255,255,0.1);";
                 msgDiv.innerText = payload.new.mensaje;
                 chatBox.appendChild(msgDiv);
                 chatBox.scrollTop = chatBox.scrollHeight;
@@ -311,11 +334,9 @@
             const input = document.getElementById('input-chat-gruero');
             const msg = input.value.trim();
             if (!msg || !currentAsistenciaId) return;
-
             await window.dbApp.from('mensajes_viales').insert([{ asistencia_id: currentAsistenciaId, emisor_id: currentUser.id, mensaje: msg }]);
             input.value = '';
         }
-
         async function finalizarServicioGrua() {
             if (gruaCallFrame) { gruaCallFrame.leave(); gruaCallFrame.destroy(); gruaCallFrame = null; }
             if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
