@@ -235,7 +235,7 @@
                 </div>
 
                 <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
-                    <button id="btn-video-gruero" onclick="iniciarVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer;">📹 VIDEO</button>
+                    <button id="btn-video-gruero" onclick="toggleVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer;">📹 CONECTAR VIDEO</button>
                     <input type="text" id="input-chat-gruero" placeholder="Escribe al cliente..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;">
                     <button onclick="enviarMensajeGruero()" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white; cursor:pointer;">🚀</button>
                 </div>
@@ -245,20 +245,43 @@
             iniciarChatGruero(currentAsistenciaId);
         }
 
-        async function iniciarVideoGruero() {
-            document.getElementById('vial-map-placeholder-gruero').style.display = 'none';
-            document.getElementById('vial-video-container-gruero').style.display = 'block';
-
-            gruaCallFrame = window.DailyIframe.createFrame(document.getElementById('vial-video-container-gruero'), {
-                showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-            });
-            await gruaCallFrame.join({ url: salaGruaUrl });
-
+        // FUNCION PARA QUE EL GRUERO ENCIENDA LA CÁMARA
+       // EL NUEVO INTERRUPTOR DE VIDEO (LADO GRUERO)
+        let isVideoActiveGruero = false;
+        async function toggleVideoGruero() {
             const btnVideo = document.getElementById('btn-video-gruero');
-            btnVideo.style.background = "var(--green-active)";
-            btnVideo.innerText = "📹 ACTIVO";
-        }
+            const mapCont = document.getElementById('vial-map-placeholder-gruero');
+            const vidCont = document.getElementById('vial-video-container-gruero');
 
+            if (!isVideoActiveGruero) {
+                // PRENDER VIDEO
+                mapCont.style.display = 'none';
+                vidCont.style.display = 'block';
+                btnVideo.innerText = "⏳...";
+
+                if (!gruaCallFrame) {
+                    gruaCallFrame = window.DailyIframe.createFrame(vidCont, {
+                        showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+                    });
+                }
+                await gruaCallFrame.join({ url: vialActualUrl });
+
+                btnVideo.style.background = "#EF4444"; // Se pone rojo
+                btnVideo.style.color = "white";
+                btnVideo.innerText = "📴 APAGAR VIDEO";
+                isVideoActiveGruero = true;
+            } else {
+                // APAGAR VIDEO (Vuelve al mapa sin salir del chat)
+                if (gruaCallFrame) await gruaCallFrame.leave();
+                vidCont.style.display = 'none';
+                mapCont.style.display = 'flex';
+                
+                btnVideo.style.background = "var(--gold)"; // Vuelve a amarillo
+                btnVideo.style.color = "var(--navy)";
+                btnVideo.innerText = "📹 CONECTAR VIDEO";
+                isVideoActiveGruero = false;
+            }
+        }
         function iniciarChatGruero(asistenciaId) {
             if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
             chatChannelGruero = window.dbApp.channel(`chat-gruero-${asistenciaId}`)

@@ -714,14 +714,14 @@
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
     // ── FUNCIONES DE ADMIN Y BILLETERA ──
-    async function verificarSiEsAdmin(userId) {
+   async function verificarSiEsAdmin(userId) {
         const { data: perfil } = await dbApp.from('usuarios').select('rol').eq('auth_id', userId).maybeSingle();
-        
         if (perfil && perfil.rol === 'admin') {
             const btnAdmin = document.createElement('button');
             btnAdmin.innerHTML = '⚙️ Panel de Dios';
             btnAdmin.onclick = () => window.location.href = 'admin.html';
-            btnAdmin.style.cssText = 'position:fixed; bottom:20px; left:20px; background:#ef4444; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; z-index:9999; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+            // Cambiamos a top:80px para que no tape el chat
+            btnAdmin.style.cssText = 'position:fixed; top:80px; left:20px; background:#ef4444; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; z-index:9999; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
             document.body.appendChild(btnAdmin);
         }
     }
@@ -881,8 +881,12 @@
 
     // ESTA FUNCIÓN SE EJECUTA CUANDO EL GRUERO LE DA A "ACEPTAR"
     function activarSalaInteractiva(grueroId) {
-        document.getElementById('vial-status-txt').innerText = "🚜 GRÚA EN CAMINO";
-        document.getElementById('vial-status-txt').style.color = "var(--green-active)";
+        // Corrección del ID duplicado para que cambie el título de la ventana negra
+        const statusTxt = document.querySelector('#video-overlay-vial #vial-status-txt');
+        if (statusTxt) {
+            statusTxt.innerText = "🚜 GRÚA EN CAMINO";
+            statusTxt.style.color = "var(--green-active)";
+        }
 
         const chatBox = document.getElementById('vial-chat-box');
         const msgDiv = document.createElement('div');
@@ -895,11 +899,15 @@
         document.getElementById('input-chat-vial').disabled = false;
         document.getElementById('btn-enviar-vial').disabled = false;
         document.getElementById('btn-enviar-vial').style.background = "var(--blue-trust)";
-        document.getElementById('btn-conectar-video').style.display = "block";
+        
+        // Configuramos el botón para que use la nueva función de "Interruptor"
+        const btnVideo = document.getElementById('btn-conectar-video');
+        btnVideo.style.display = "block";
+        btnVideo.setAttribute('onclick', 'toggleVideoGrua()');
 
         iniciarChatVial(vialActualId);
 
-        // Iniciamos el radar GPS
+        // Iniciamos el radar GPS y arreglamos el texto de distancia
         if (trackInterval) clearInterval(trackInterval);
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
@@ -910,27 +918,49 @@
                 const dl = (unidad.lng_actual-userLocation.lng) * Math.PI/180;
                 const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
                 const dist = Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))));
-                document.getElementById('distancia-txt').innerText = `📍 Distancia de la grúa: ${dist} m`;
+                
+                const distTxt = document.querySelector('#video-overlay-vial #distancia-txt');
+                if(distTxt) distTxt.innerText = `📍 Distancia de la grúa: ${dist} m`;
             }
         }, 3000);
     }
 
-    // EL USUARIO TOCA ESTE BOTÓN DENTRO DE LA SALA PARA ABRIR LA CÁMARA
-    async function iniciarVideoGrua() {
-        document.getElementById('vial-map-placeholder').style.display = 'none';
-        document.getElementById('vial-video-container').style.display = 'block';
-
-        const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
-            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-        });
-        window._dailyGruaFrame = frame;
-        await frame.join({ url: vialActualUrl, token: vialActualToken });
-
+    // EL NUEVO INTERRUPTOR DE VIDEO (PRENDE Y APAGA)
+    let isVideoActiveVial = false;
+    async function toggleVideoGrua() {
         const btnVideo = document.getElementById('btn-conectar-video');
-        btnVideo.style.background = "var(--green-active)";
-        btnVideo.innerText = "📹 ACTIVO";
-    }
+        const mapCont = document.getElementById('vial-map-placeholder');
+        const vidCont = document.getElementById('vial-video-container');
 
+        if (!isVideoActiveVial) {
+            // PRENDER VIDEO
+            mapCont.style.display = 'none';
+            vidCont.style.display = 'block';
+            btnVideo.innerText = "⏳...";
+
+            if(!window._dailyGruaFrame) {
+                window._dailyGruaFrame = window.DailyIframe.createFrame(vidCont, {
+                    showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+                });
+            }
+            await window._dailyGruaFrame.join({ url: vialActualUrl, token: vialActualToken });
+
+            btnVideo.style.background = "#EF4444"; // Se pone rojo
+            btnVideo.style.color = "white";
+            btnVideo.innerText = "📴 APAGAR VIDEO";
+            isVideoActiveVial = true;
+        } else {
+            // APAGAR VIDEO (Vuelve al mapa sin salir del chat)
+            if(window._dailyGruaFrame) await window._dailyGruaFrame.leave();
+            vidCont.style.display = 'none';
+            mapCont.style.display = 'flex';
+            
+            btnVideo.style.background = "var(--gold)"; // Vuelve a amarillo
+            btnVideo.style.color = "var(--navy)";
+            btnVideo.innerText = "📹 CONECTAR VIDEO";
+            isVideoActiveVial = false;
+        }
+    }
     // EL MOTOR DEL CHAT EN TIEMPO REAL
     function iniciarChatVial(asistenciaId) {
         if (chatChannelVial) dbApp.removeChannel(chatChannelVial);
