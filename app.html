@@ -752,90 +752,97 @@
         }
     }
 
-   // ── LÓGICA DE GRÚA (CLON DE ARQUITECTURA ABOGADO) ──
+   // ── MOTOR DE ASISTENCIA VIAL SECUREFLOW ──
     let trackInterval = null;
+    let chatChannelVial = null;
 
     async function solicitarGrua() {
-        if (!userLocation) { mostrarNotificacion("⚠️ Activa el GPS.", "error"); return; }
-        if (!confirm("¿Solicitar asistencia vial a tu ubicación actual?")) return;
+        if (!userLocation) { mostrarNotificacion("⚠️ GPS necesario.", "error"); return; }
+        if (!confirm("¿Solicitar asistencia vial ahora?")) return;
 
-        const btn = document.getElementById('ac-grua');
-        const oldHtml = btn.innerHTML;
-        btn.innerHTML = '<span>⏳</span><p>CONECTANDO...</p>';
-        btn.style.pointerEvents = 'none';
-
+        mostrarNotificacion("🛰️ Conectando con la red...", "exito");
+        
         try {
             const { data: { user } } = await dbApp.auth.getUser();
-            const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
-            if (salaError) throw new Error('Falla en servidor de video');
+            const { data: salaData } = await dbApp.functions.invoke('crear-sala');
 
-            const { data: reg, error: insErr } = await dbApp.from('asistencias_viales').insert([{
-                ciudadano_id: user.id, ubicacion_origen_lat: userLocation.lat, ubicacion_origen_lng: userLocation.lng,
-                sala_webrtc_url: salaData.url, estado: 'pendiente'
+            const { data: reg } = await dbApp.from('asistencias_viales').insert([{
+                ciudadano_id: user.id,
+                ubicacion_origen_lat: userLocation.lat,
+                ubicacion_origen_lng: userLocation.lng,
+                sala_webrtc_url: salaData.url, 
+                estado: 'pendiente'
             }]).select('id').single();
-
-            if (insErr) throw insErr;
 
             let aceptado = false;
 
-            // ESCUCHADOR IGUAL AL DE ABOGADO
+            // ESCUCHADOR DE RESPUESTA DEL GRUERO
             const canalVial = dbApp.channel(`vial-${reg.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` }, 
             (payload) => {
                 if (payload.new.estado === 'aceptada' && !aceptado) {
                     aceptado = true;
                     dbApp.removeChannel(canalVial);
-                    btn.innerHTML = oldHtml; btn.style.pointerEvents = 'auto';
-
-                    // LA LLAVE: Alerta de confirmación para que el móvil permita abrir la cámara
-                    if (confirm("🚜 ¡Gruero conectado! ¿Entrar a la sala de asistencia ahora?")) {
-                        lanzarSalaVial(payload.new.gruero_id, salaData.url, salaData.token);
+                    
+                    // LA CLAVE: El confirm da permiso al móvil para abrir la cámara/ventana
+                    if (confirm("🚜 ¡Gruero en camino! ¿Abrir sala de comunicación?")) {
+                        lanzarSalaVial(reg.id, payload.new.gruero_id, salaData.url, salaData.token);
                     }
                 }
             }).subscribe();
 
-        } catch (err) {
-            mostrarNotificacion("Error de red.", "error");
-            btn.innerHTML = oldHtml; btn.style.pointerEvents = 'auto';
-        }
+        } catch (err) { alert("Falla de conexión."); }
     }
 
-    async function lanzarSalaVial(grueroId, urlVideo, tokenVideo) {
-        // Creamos el Overlay inyectado al body (Igual que el abogado)
+    async function lanzarSalaVial(asistenciaId, grueroId, urlVideo, tokenVideo) {
+        // 1. Crear la ventana interna (Overlay) sobre todo el dashboard
         const overlay = document.createElement('div');
         overlay.id = 'video-overlay-vial';
         overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
         
         overlay.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
                 <div>
-                    <p style="font-size:0.6rem; color:var(--gray-400); letter-spacing:1px;">DISTANCIA GPS</p>
+                    <p style="font-size:0.6rem; color:var(--gray-400);">DISTANCIA</p>
                     <h3 id="vial-distancia-txt" style="color:var(--gold); font-size:0.9rem;">-- m</h3>
                 </div>
-                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">CERRAR</button>
+                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800;">CERRAR</button>
             </div>
             
-            <div id="vial-video-container" style="height:40%; width:100%; background:#000;"></div>
+            <div id="vial-video-container" style="height:35%; width:100%; background:#000;"></div>
             
-            <div id="vial-chat-display" style="flex:1; overflow-y:auto; padding:15px; background:var(--navy-light); display:flex; flex-direction:column; gap:10px;">
-                <div class="msg bot">🚜 El gruero está en camino. Puedes hablar por aquí o por video.</div>
+            <div id="vial-chat-box" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);">
+                <div class="msg bot">🚜 Canal seguro abierto. Puedes escribir o enviar fotos.</div>
             </div>
 
-            <div style="padding:10px; background:var(--navy); display:flex; gap:8px;">
-                <input type="text" id="chat-vial-input" placeholder="Escribe al gruero..." style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3); color:white; outline:none;">
-                <button onclick="enviarMensajeVial('${grueroId}')" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white;">🚀</button>
+            <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
+                <input type="text" id="input-chat-vial" placeholder="Escribir..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:none; outline:none;">
+                <button onclick="enviarMensajeVial('${asistenciaId}')" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white;">🚀</button>
             </div>
         `;
         document.body.appendChild(overlay);
 
-        // Conectamos Daily.co (El toque del confirm anterior ya dio permiso)
+        // 2. Conectar Video (Daily.co)
         const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
             showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
         });
         window._dailyGruaFrame = frame;
         await frame.join({ url: urlVideo, token: tokenVideo });
 
-        // Iniciar Rastreo GPS
+        // 3. Motor de Chat en Tiempo Real
+        chatChannelVial = dbApp.channel(`chat-vial-${asistenciaId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_viales', filter: `asistencia_id=eq.${asistenciaId}` }, 
+        (payload) => {
+            const isMe = payload.new.emisor_id === currentUser.id;
+            const chatBox = document.getElementById('vial-chat-box');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isMe ? 'msg user' : 'msg bot';
+            msgDiv.innerText = payload.new.mensaje;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }).subscribe();
+
+        // 4. Rastreo GPS
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
             if (unidad && userLocation) {
@@ -845,12 +852,26 @@
         }, 3000);
     }
 
+    async function enviarMensajeVial(asistenciaId) {
+        const input = document.getElementById('input-chat-vial');
+        const msg = input.value.trim();
+        if (!msg) return;
+        
+        await dbApp.from('mensajes_viales').insert([{
+            asistencia_id: asistenciaId,
+            emisor_id: currentUser.id,
+            mensaje: msg
+        }]);
+        input.value = '';
+    }
+
     function endGruaCall() {
         if (window._dailyGruaFrame) { window._dailyGruaFrame.leave(); window._dailyGruaFrame.destroy(); window._dailyGruaFrame = null; }
         if (trackInterval) clearInterval(trackInterval);
+        if (chatChannelVial) dbApp.removeChannel(chatChannelVial);
         const overlay = document.getElementById('video-overlay-vial');
         if (overlay) overlay.remove();
-        mostrarNotificacion("Asistencia finalizada.", "exito");
+        mostrarNotificacion("Sesión finalizada.", "exito");
     }
     // ESTA ES LA LÍNEA QUE FALTA PARA ARRANCAR EL MOTOR DE LA APP
     checkUser();
