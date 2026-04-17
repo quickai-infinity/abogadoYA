@@ -741,7 +741,8 @@
     }
 
     // Inicializamos todo
-let trackInterval = null;
+// ── LÓGICA DE GRÚA (CON ARQUITECTURA DE OVERLAY TIPO ABOGADO) ──
+    let trackInterval = null;
 
     async function solicitarGrua() {
         if (!userLocation) {
@@ -749,10 +750,13 @@ let trackInterval = null;
             return;
         }
 
-        const confirmar = confirm(`¿Solicitar asistencia vial a tu ubicación actual?`);
-        if (!confirmar) return;
+        if (!confirm(`¿Solicitar asistencia vial a tu ubicación actual?`)) return;
 
-        mostrarNotificacion("🛰️ Conectando con red SecureFlow...", "exito");
+        // Feedback visual en el botón
+        const btn = document.getElementById('ac-grua');
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<span>⏳</span><p>CONECTANDO...</p>';
+        btn.style.pointerEvents = 'none';
         
         try {
             const { data: { user } } = await dbApp.auth.getUser();
@@ -769,76 +773,99 @@ let trackInterval = null;
 
             if (insErr) throw insErr;
 
-            let servicioAceptado = false; // FLAG de seguridad para evitar abrir la cámara 2 veces
+            let servicioAceptado = false;
 
-            // --- 1. ESCUCHADOR RÁPIDO EN TIEMPO REAL ---
+            // 1. ESCUCHADOR EN TIEMPO REAL
             const canalVial = dbApp.channel(`vial-${reg.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` }, 
-            async (payload) => {
+            (payload) => {
                 if (payload.new.estado === 'aceptada' && !servicioAceptado) {
                     servicioAceptado = true;
                     dbApp.removeChannel(canalVial);
+                    btn.innerHTML = oldHtml;
+                    btn.style.pointerEvents = 'auto';
                     iniciarHubAsistencia(payload.new.gruero_id, salaData.url, salaData.token);
                 }
             }).subscribe();
 
-            // --- 2. EL SALVAVIDAS ANTI-FALLOS (Se activa si el paso 1 falla) ---
+            // 2. BACKUP POR SI FALLA EL TIEMPO REAL (Polling)
             const verificador = setInterval(async () => {
-                if (servicioAceptado) {
-                    clearInterval(verificador);
-                    return;
-                }
-                const { data: checkData } = await dbApp.from('asistencias_viales')
-                    .select('estado, gruero_id')
-                    .eq('id', reg.id)
-                    .single();
-                    
+                if (servicioAceptado) { clearInterval(verificador); return; }
+                const { data: checkData } = await dbApp.from('asistencias_viales').select('estado, gruero_id').eq('id', reg.id).single();
                 if (checkData && checkData.estado === 'aceptada' && !servicioAceptado) {
                     servicioAceptado = true;
                     clearInterval(verificador);
                     dbApp.removeChannel(canalVial);
+                    btn.innerHTML = oldHtml;
+                    btn.style.pointerEvents = 'auto';
                     iniciarHubAsistencia(checkData.gruero_id, salaData.url, salaData.token);
                 }
             }, 3000);
 
         } catch (err) {
             mostrarNotificacion("Error de red vial.", "error");
+            btn.innerHTML = oldHtml;
+            btn.style.pointerEvents = 'auto';
         }
     }
 
     async function iniciarHubAsistencia(grueroId, urlVideo, tokenVideo) {
-        // 1. Cambiar a la vista del Hub
-        showView('servicio-vial', null);
-        document.getElementById('vial-status-txt').innerText = "🚜 UNIDAD EN CAMINO";
+        mostrarNotificacion("🚜 ¡Unidad confirmada!", "exito");
+        
+        // 3. LA CLAVE: Crear la ventana emergente forzada igual que el abogado
+        const videoOverlay = document.createElement('div');
+        videoOverlay.id = 'video-overlay-grua';
+        videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:3000; background:#000; display:flex; flex-direction:column;';
+        
+        videoOverlay.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
+                <div>
+                    <p style="font-size:0.6rem; color:var(--gray-400); letter-spacing:1px;">ESTADO OPERATIVO</p>
+                    <h3 id="vial-status-txt" style="color:var(--gold); font-size:0.85rem;">🚜 EN RUTA</h3>
+                </div>
+                <div style="text-align:right;">
+                    <p style="font-size:0.6rem; color:var(--gray-400); letter-spacing:1px;">DISTANCIA GPS</p>
+                    <h3 id="vial-distancia-txt" style="color:white; font-size:0.9rem;">Calculando...</h3>
+                </div>
+            </div>
+            
+            <div id="vial-video-container" style="flex:1; width:100%; background:#111;"></div>
+            
+            <div style="display:flex; gap:10px; padding:15px; background:var(--navy); z-index:10;">
+                <button onclick="endGruaCall()" style="flex:1; background:#EF4444; color:white; border:none; padding:15px; border-radius:12px; font-weight:800; cursor:pointer;">FINALIZAR ASISTENCIA</button>
+            </div>
+        `;
+        document.body.appendChild(videoOverlay);
 
-        // 2. Conectar Video automáticamente (Daily.co)
+        // 4. Conectar Daily.co sobre el contenedor recién inyectado
         const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
             showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
         });
         window._dailyGruaFrame = frame;
         
-        // Unir a la sala usando el token de seguridad
-        if(tokenVideo) {
-            await frame.join({ url: urlVideo, token: tokenVideo });
-        } else {
-            await frame.join({ url: urlVideo });
-        }
+        if(tokenVideo) { await frame.join({ url: urlVideo, token: tokenVideo }); } 
+        else { await frame.join({ url: urlVideo }); }
 
-        // 3. RASTREO GPS EN TIEMPO REAL
+        // 5. Iniciar Telemetría GPS en vivo
         if (trackInterval) clearInterval(trackInterval);
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
-            if (unidad) {
+            if (unidad && userLocation) {
                 const dist = calcularDistancia(userLocation.lat, userLocation.lng, unidad.lat_actual, unidad.lng_actual);
-                document.getElementById('vial-distancia-txt').innerText = `${dist} m`;
+                const distTxt = document.getElementById('vial-distancia-txt');
+                if(distTxt) distTxt.innerText = dist + ' m';
                 
                 if (dist < 50) {
-                    document.getElementById('vial-status-txt').innerText = "✅ UNIDAD EN EL SITIO";
-                    document.getElementById('vial-status-txt').style.color = "var(--green-active)";
+                    const statusTxt = document.getElementById('vial-status-txt');
+                    if(statusTxt) {
+                        statusTxt.innerText = "✅ EN EL SITIO";
+                        statusTxt.style.color = "var(--green-active)";
+                    }
                 }
             }
-        }, 3000); // Actualiza la distancia cada 3 segundos
+        }, 3000);
     }
+
     function calcularDistancia(lat1, lon1, lat2, lon2) {
         const R = 6371e3;
         const φ1 = lat1 * Math.PI/180;
@@ -853,7 +880,8 @@ let trackInterval = null;
     function endGruaCall() {
         if (window._dailyGruaFrame) { window._dailyGruaFrame.leave(); window._dailyGruaFrame.destroy(); window._dailyGruaFrame = null; }
         if (trackInterval) clearInterval(trackInterval);
-        showView('home', document.querySelectorAll('.nav-item')[0]);
+        const overlay = document.getElementById('video-overlay-grua');
+        if (overlay) overlay.remove(); // Destruye la ventana igual que en el panel abogado
         mostrarNotificacion("Asistencia finalizada.", "exito");
     }
 
