@@ -247,36 +247,41 @@
 
         // FUNCION PARA QUE EL GRUERO ENCIENDA LA CÁMARA
        // EL NUEVO INTERRUPTOR DE VIDEO (LADO GRUERO)
-        let isVideoActiveGruero = false;
+      let isVideoActiveGruero = false;
         async function toggleVideoGruero() {
             const btnVideo = document.getElementById('btn-video-gruero');
             const mapCont = document.getElementById('vial-map-placeholder-gruero');
             const vidCont = document.getElementById('vial-video-container-gruero');
 
+            if (!vialActualUrl) return;
+
             if (!isVideoActiveGruero) {
-                // PRENDER VIDEO
                 mapCont.style.display = 'none';
                 vidCont.style.display = 'block';
                 btnVideo.innerText = "⏳...";
 
-                if (!gruaCallFrame) {
-                    gruaCallFrame = window.DailyIframe.createFrame(vidCont, {
-                        showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-                    });
+                try {
+                    if (!gruaCallFrame) {
+                        gruaCallFrame = window.DailyIframe.createFrame(vidCont, {
+                            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+                        });
+                    }
+                    await gruaCallFrame.join({ url: vialActualUrl });
+                    btnVideo.style.background = "#EF4444";
+                    btnVideo.style.color = "white";
+                    btnVideo.innerText = "📴 APAGAR VIDEO";
+                    isVideoActiveGruero = true;
+                } catch(e) {
+                    // FALLBACK EXTERNO
+                    alert("Navegador estricto detectado. Abriendo sala de video externa...");
+                    window.open(vialActualUrl, '_blank');
+                    btnVideo.innerText = "📹 VIDEO ACTIVO (EXTERNO)";
                 }
-                await gruaCallFrame.join({ url: vialActualUrl });
-
-                btnVideo.style.background = "#EF4444"; // Se pone rojo
-                btnVideo.style.color = "white";
-                btnVideo.innerText = "📴 APAGAR VIDEO";
-                isVideoActiveGruero = true;
             } else {
-                // APAGAR VIDEO (Vuelve al mapa sin salir del chat)
                 if (gruaCallFrame) await gruaCallFrame.leave();
                 vidCont.style.display = 'none';
                 mapCont.style.display = 'flex';
-                
-                btnVideo.style.background = "var(--gold)"; // Vuelve a amarillo
+                btnVideo.style.background = "var(--gold)";
                 btnVideo.style.color = "var(--navy)";
                 btnVideo.innerText = "📹 CONECTAR VIDEO";
                 isVideoActiveGruero = false;

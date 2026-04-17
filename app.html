@@ -926,36 +926,41 @@
     }
 
     // EL NUEVO INTERRUPTOR DE VIDEO (PRENDE Y APAGA)
-    let isVideoActiveVial = false;
+   let isVideoActiveVial = false;
     async function toggleVideoGrua() {
         const btnVideo = document.getElementById('btn-conectar-video');
         const mapCont = document.getElementById('vial-map-placeholder');
         const vidCont = document.getElementById('vial-video-container');
 
+        if (!vialActualUrl) { alert("Error de servidor: Enlace de video no generado."); return; }
+
         if (!isVideoActiveVial) {
-            // PRENDER VIDEO
             mapCont.style.display = 'none';
             vidCont.style.display = 'block';
             btnVideo.innerText = "⏳...";
 
-            if(!window._dailyGruaFrame) {
-                window._dailyGruaFrame = window.DailyIframe.createFrame(vidCont, {
-                    showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-                });
+            try {
+                if(!window._dailyGruaFrame) {
+                    window._dailyGruaFrame = window.DailyIframe.createFrame(vidCont, {
+                        showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+                    });
+                }
+                await window._dailyGruaFrame.join({ url: vialActualUrl, token: vialActualToken });
+                btnVideo.style.background = "#EF4444";
+                btnVideo.style.color = "white";
+                btnVideo.innerText = "📴 APAGAR VIDEO";
+                isVideoActiveVial = true;
+            } catch (e) {
+                // FALLBACK: Si el navegador bloquea el iframe, lo abrimos como ventana emergente (Estilo PWA)
+                alert("Navegador estricto detectado. Abriendo sala de video externa...");
+                window.open(vialActualUrl, '_blank');
+                btnVideo.innerText = "📹 VIDEO ACTIVO (EXTERNO)";
             }
-            await window._dailyGruaFrame.join({ url: vialActualUrl, token: vialActualToken });
-
-            btnVideo.style.background = "#EF4444"; // Se pone rojo
-            btnVideo.style.color = "white";
-            btnVideo.innerText = "📴 APAGAR VIDEO";
-            isVideoActiveVial = true;
         } else {
-            // APAGAR VIDEO (Vuelve al mapa sin salir del chat)
             if(window._dailyGruaFrame) await window._dailyGruaFrame.leave();
             vidCont.style.display = 'none';
             mapCont.style.display = 'flex';
-            
-            btnVideo.style.background = "var(--gold)"; // Vuelve a amarillo
+            btnVideo.style.background = "var(--gold)";
             btnVideo.style.color = "var(--navy)";
             btnVideo.innerText = "📹 CONECTAR VIDEO";
             isVideoActiveVial = false;
