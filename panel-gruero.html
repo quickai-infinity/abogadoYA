@@ -366,8 +366,16 @@
             input.value = '';
         }
 
+        // FUNCIÓN FALTANTE PARA SALIR DEL PANEL
+        async function logout() { 
+            if(isOnline) await toggleServicio(); 
+            await window.dbApp.auth.signOut(); 
+            window.location.href = 'index.html'; 
+        }
+
         checkUser();
         iniciarRadarGruas();
     </script>
+    <script src="agente-ia.js"></script>
 </body>
 </html>
