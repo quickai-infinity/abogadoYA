@@ -844,17 +844,27 @@
         }
     }
 
-    // DISEÑO DE LA SALA INTERACTIVA
-    // MOTOR DE MAPAS EN VIVO
+    // MOTOR DE MAPAS EN VIVO Y RUTAS
     let mapVial = null;
     let markerCiudadano = null;
     let markerGruero = null;
+    let controlRuta = null; // Añadimos el controlador de la ruta
 
     function cargarMapa(callback) {
-        if (window.L) { callback(); return; }
-        const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
-        const script = document.createElement('script'); script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = callback; document.head.appendChild(script);
+        if (window.L && window.L.Routing) { callback(); return; }
+        
+        // Cargamos CSS del mapa y de las rutas
+        const linkL = document.createElement('link'); linkL.rel = 'stylesheet'; linkL.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(linkL);
+        const linkR = document.createElement('link'); linkR.rel = 'stylesheet'; linkR.href = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css'; document.head.appendChild(linkR);
+
+        // Cargamos JS del mapa y luego el de rutas
+        const scriptL = document.createElement('script'); scriptL.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        scriptL.onload = () => {
+            const scriptR = document.createElement('script'); scriptR.src = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js';
+            scriptR.onload = callback;
+            document.head.appendChild(scriptR);
+        };
+        document.head.appendChild(scriptL);
     }
 
     function abrirVentanaVialInmediata() {
@@ -862,8 +872,11 @@
         overlay.id = 'video-overlay-vial';
         overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
 
-       overlay.innerHTML = `
-            <style>.map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); }</style>
+        overlay.innerHTML = `
+            <style>
+                .map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); }
+                .leaflet-routing-container { display: none !important; } /* Esconde las instrucciones de texto */
+            </style>
             
             <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
                 <div><p style="font-size:0.6rem; color:var(--gray-400);">ESTADO</p><h3 id="vial-status-txt" style="color:var(--gold); font-size:0.9rem;">⏳ BUSCANDO UNIDAD...</h3></div>
@@ -923,8 +936,6 @@
         document.getElementById('btn-enviar-gps').style.display = "block";
 
         iniciarChatVial(vialActualId);
-
-        // ENVÍO AUTOMÁTICO DEL LINK GPS AL GRUERO
         enviarGPSManual();
 
         if (trackInterval) clearInterval(trackInterval);
@@ -932,10 +943,29 @@
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
             if (unidad && userLocation) {
                 if (mapVial && window.L) {
-                    if (markerGruero) { markerGruero.setLatLng([unidad.lat_actual, unidad.lng_actual]); } 
+                    if (markerGruero) { 
+                        markerGruero.setLatLng([unidad.lat_actual, unidad.lng_actual]); 
+                        // ACTUALIZAMOS LA RUTA MIENTRAS LA GRÚA SE MUEVE
+                        if(controlRuta) {
+                            controlRuta.setWaypoints([
+                                L.latLng(unidad.lat_actual, unidad.lng_actual),
+                                L.latLng(userLocation.lat, userLocation.lng)
+                            ]);
+                        }
+                    } 
                     else {
                         const iconG = L.divIcon({ html: '🚜', className: 'map-icon-marker' });
                         markerGruero = L.marker([unidad.lat_actual, unidad.lng_actual], {icon: iconG}).addTo(mapVial).bindPopup('Grúa');
+                        
+                        // DIBUJAMOS LA LÍNEA AZUL POR PRIMERA VEZ
+                        controlRuta = L.Routing.control({
+                            waypoints: [
+                                L.latLng(unidad.lat_actual, unidad.lng_actual), // Grúa
+                                L.latLng(userLocation.lat, userLocation.lng)  // Ciudadano
+                            ],
+                            addWaypoints: false, routeWhileDragging: false, showAlternatives: false, fitSelectedRoutes: true,
+                            lineOptions: { styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] }
+                        }).addTo(mapVial);
                     }
                     const group = new L.featureGroup([markerCiudadano, markerGruero]);
                     mapVial.fitBounds(group.getBounds(), {padding: [30, 30]});
