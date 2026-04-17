@@ -94,6 +94,11 @@
         let miGrueroId = null;
         let isOnline = false;
         let gpsWatchId = null;
+        
+        let currentAsistenciaId = null;
+        let salaGruaUrl = null;
+        let gruaCallFrame = null;
+        let chatChannelGruero = null;
 
         function showToast(msg) {
             const t = document.getElementById('toast');
@@ -102,27 +107,23 @@
             setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(100px)'; }, 3000);
         }
 
-        // 1. CARGAR DATOS DEL GRUERO AL INICIAR
         async function checkUser() {
             const { data: { user } } = await window.dbApp.auth.getUser();
             if (!user) { window.location.href = 'index.html'; return; }
             currentUser = user;
 
-            // Buscamos su ID en la tabla de grueros
             const { data: perfil } = await window.dbApp.from('grueros').select('*').eq('auth_id', user.id).maybeSingle();
-            
             if (perfil) {
                 miGrueroId = perfil.id;
                 document.getElementById('txt-bienvenida').innerText = `Hola, ${perfil.nombre_completo.split(' ')[0]}`;
                 document.getElementById('txt-status').innerText = `Placa: ${perfil.placa_vehiculo} - Fuera de servicio`;
             } else {
-                alert("Error: No se encontró tu perfil de gruero. Contacta a soporte.");
+                alert("Error crítico: No se encontró tu perfil de gruero en la base de datos.");
             }
         }
 
-        // 2. LÓGICA DE GPS Y CAMBIO DE ESTADO
         async function toggleServicio() {
-            if (!miGrueroId) { showToast("Cargando perfil, espera..."); return; }
+            if (!miGrueroId) { showToast("Cargando perfil..."); return; }
 
             isOnline = !isOnline;
             const btn = document.getElementById('btn-toggle');
@@ -130,160 +131,80 @@
             const radarIcon = document.getElementById('radar-icon');
 
             if (isOnline) {
-                // Activar Guardia
-                if (!navigator.geolocation) {
-                    alert("Tu dispositivo no soporta GPS. No puedes recibir servicios.");
-                    isOnline = false; return;
-                }
-
+                if (!navigator.geolocation) { alert("GPS no soportado. No puedes recibir servicios."); isOnline = false; return; }
                 btn.innerText = "EN SERVICIO (GPS ACTIVO)";
                 btn.className = "btn-status online";
                 radarIcon.innerText = "🛰️";
                 radarIcon.style.animation = "pulse 2s infinite";
-                statusTxt.innerText = "Buscando satélites...";
+                statusTxt.innerText = "Guardia Activa - Esperando servicios...";
 
-                // Pedir GPS e inyectar en Supabase
                 gpsWatchId = navigator.geolocation.watchPosition(
                     async (pos) => {
-                        statusTxt.innerText = "Guardia Activa - Esperando servicios...";
-                        
-                        // Guardar estado y GPS en la tabla 'unidades_grua'
                         await window.dbApp.from('unidades_grua').upsert({
-                            gruero_id: miGrueroId,
-                            estado: 'disponible',
-                            lat_actual: pos.coords.latitude,
-                            lng_actual: pos.coords.longitude,
+                            gruero_id: miGrueroId, estado: 'disponible',
+                            lat_actual: pos.coords.latitude, lng_actual: pos.coords.longitude,
                             ultima_actualizacion: new Date().toISOString()
                         }, { onConflict: 'gruero_id' });
-                        
                     },
-                    (err) => {
-                        showToast("Activa el GPS de tu teléfono.");
-                        toggleServicio(); // Apagar si falla el GPS
-                    },
+                    (err) => { showToast("Activa el GPS"); toggleServicio(); },
                     { enableHighAccuracy: true, maximumAge: 10000 }
                 );
-
-                showToast("Guardia Iniciada. Transmitiendo GPS.");
-
+                showToast("Guardia Iniciada.");
             } else {
-                // Desactivar Guardia
                 btn.innerText = "ACTIVAR GUARDIA VIAL";
                 btn.className = "btn-status offline";
                 radarIcon.innerText = "💤";
                 radarIcon.style.animation = "none";
                 statusTxt.innerText = "Fuera de Servicio";
-
                 if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-                
-                // Actualizar a desconectado en Supabase
                 await window.dbApp.from('unidades_grua').update({ estado: 'desconectado' }).eq('gruero_id', miGrueroId);
                 showToast("Guardia Finalizada.");
             }
         }
 
-        async function logout() { 
-            if(isOnline) await toggleServicio(); // Apagar antes de salir
-            await window.dbApp.auth.signOut(); 
-            window.location.href = 'index.html'; 
-        }
-
-        // Inicializar
-        checkUser();
-
-        // Estilos extra de animación
-        const style = document.createElement('style');
-        style.innerHTML = `@keyframes pulse { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }`;
-        document.head.appendChild(style);
-        // 3. ESCUCHAR SOLICITUDES EN TIEMPO REAL
         function iniciarRadarGruas() {
             window.dbApp.channel('alertas_viales')
-            .on('postgres_changes', { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'asistencias_viales',
-                filter: 'estado=eq.pendiente' // Solo avisa si es una emergencia nueva
-            }, (payload) => {
-                console.log("¡Alarma! Nueva solicitud:", payload);
-                
-                // Solo le suena al gruero si está "En Servicio"
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'asistencias_viales', filter: 'estado=eq.pendiente' }, 
+            (payload) => {
                 if (isOnline) {
-                    // Muestra la caja amarilla de alerta
-                    document.getElementById('alerta-servicio').style.display = 'block';
-                    document.getElementById('distancia-cliente').innerText = "📍 ¡Un ciudadano solicitó grúa cerca de tu ubicación!";
-                    
-                    // Hacer que el teléfono/PC suene (Tipo alerta Uber)
-                    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-                    audio.play().catch(e => console.log("El navegador bloqueó el sonido automático"));
-                    
-                    // Hacer vibrar el celular del gruero si lo soporta
-                    if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-                }
-            })
-            .subscribe();
-        }
-
-        // Encendemos el radar apenas carga la página
-        iniciarRadarGruas();
-        let currentAsistenciaId = null;
-        let salaGruaUrl = null;
-        let gruaCallFrame = null;
-
-        function iniciarRadarGruas() {
-            window.dbApp.channel('alertas_viales')
-            .on('postgres_changes', { 
-                event: 'INSERT', schema: 'public', table: 'asistencias_viales', filter: 'estado=eq.pendiente'
-            }, (payload) => {
-                if (isOnline) {
-                    // Guardamos los datos de esta emergencia
                     currentAsistenciaId = payload.new.id;
                     salaGruaUrl = payload.new.sala_webrtc_url;
-
                     document.getElementById('alerta-servicio').style.display = 'block';
-                    document.getElementById('distancia-cliente').innerText = "📍 ¡Ciudadano solicitó grúa! Preparando cámara...";
+                    document.getElementById('distancia-cliente').innerText = "📍 ¡Ciudadano solicitó grúa! Preparando sala...";
                     
-                    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-                    audio.play().catch(e => {});
+                    try { new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play(); } catch(e) {}
                     if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                 }
             }).subscribe();
         }
 
-       // ── MOTOR DE LA SALA INTERACTIVA DEL GRUERO ──
-        let chatChannelGruero = null;
-        let vialActualId = null;
-        let vialActualUrl = null;
-
         async function aceptarServicio() {
             if (!currentAsistenciaId) return;
-
             const btn = document.querySelector('#alerta-servicio button');
-            btn.innerText = "⏳ ABRIENDO SALA...";
-            btn.disabled = true;
+            btn.innerText = "⏳ ABRIENDO SALA..."; btn.disabled = true;
 
-            // 1. Avisamos a Supabase que el gruero aceptó
-            const { error } = await window.dbApp.from('asistencias_viales')
+            // FIX DB: Usamos .select() para obligar a Supabase a decirnos si el RLS bloqueó el cambio
+            const { data, error } = await window.dbApp.from('asistencias_viales')
                 .update({ estado: 'aceptada', gruero_id: miGrueroId })
-                .eq('id', currentAsistenciaId);
+                .eq('id', currentAsistenciaId)
+                .select();
 
             if (error) { 
-                alert("Error: " + error.message); 
-                btn.innerText = "ACEPTAR SERVICIO"; 
-                btn.disabled = false; 
-                return; 
+                alert("Error de Red: " + error.message); 
+                btn.innerText = "ACEPTAR SERVICIO"; btn.disabled = false; return; 
+            }
+            
+            // Si Supabase devuelve 0 datos, significa que los permisos de seguridad (RLS) bloquearon al gruero.
+            if (!data || data.length === 0) {
+                alert("🚨 BLOQUEO DE BASE DE DATOS: El usuario gruero no tiene permiso para actualizar la tabla. Ve a Supabase SQL Editor y ejecuta: ALTER TABLE asistencias_viales DISABLE ROW LEVEL SECURITY;");
+                btn.innerText = "ACEPTAR SERVICIO"; btn.disabled = false; return;
             }
 
-            vialActualId = currentAsistenciaId;
-            vialActualUrl = salaGruaUrl;
-
-            // 2. Escondemos el menú principal
             document.getElementById('alerta-servicio').style.display = 'none';
             document.getElementById('radar-visual').style.display = 'none';
             document.getElementById('btn-toggle').style.display = 'none';
-            btn.innerText = "ACEPTAR SERVICIO";
-            btn.disabled = false;
+            btn.innerText = "ACEPTAR SERVICIO"; btn.disabled = false;
 
-            // 3. ABRIR LA SALA INTERACTIVA PARA EL GRUERO
             abrirSalaInteractivaGruero();
         }
 
@@ -291,7 +212,7 @@
             const overlay = document.createElement('div');
             overlay.id = 'video-overlay-gruero';
             overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
-
+            
             overlay.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
                     <div>
@@ -302,13 +223,14 @@
                 </div>
 
                 <div id="vial-video-container-gruero" style="height:35%; width:100%; background:#000; display:none;"></div>
+                
                 <div id="vial-map-placeholder-gruero" style="height:35%; width:100%; background:#111; display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,0.1);">
-                    <p style="color:var(--gray-500); font-size:0.8rem;">📍 Compartiendo tu GPS con el ciudadano...</p>
+                    <p style="color:var(--gray-500); font-size:0.8rem;">📍 Conectado. Compartiendo GPS con el ciudadano...</p>
                 </div>
 
                 <div id="vial-chat-box-gruero" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);">
                     <div class="msg bot" style="background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3); max-width:90%; align-self:flex-start; padding:12px; border-radius:12px;">
-                        📡 Has aceptado el servicio. Puedes comunicarte con el cliente por aquí.
+                        📡 Sala conectada. Ya puedes escribirle al cliente.
                     </div>
                 </div>
 
@@ -320,11 +242,9 @@
             `;
             document.body.appendChild(overlay);
 
-            // Iniciar la escucha del chat para el gruero
-            iniciarChatGruero(vialActualId);
+            iniciarChatGruero(currentAsistenciaId);
         }
 
-        // FUNCION PARA QUE EL GRUERO ENCIENDA LA CÁMARA
         async function iniciarVideoGruero() {
             document.getElementById('vial-map-placeholder-gruero').style.display = 'none';
             document.getElementById('vial-video-container-gruero').style.display = 'block';
@@ -332,17 +252,15 @@
             gruaCallFrame = window.DailyIframe.createFrame(document.getElementById('vial-video-container-gruero'), {
                 showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
             });
-            await gruaCallFrame.join({ url: vialActualUrl });
+            await gruaCallFrame.join({ url: salaGruaUrl });
 
             const btnVideo = document.getElementById('btn-video-gruero');
             btnVideo.style.background = "var(--green-active)";
             btnVideo.innerText = "📹 ACTIVO";
         }
 
-        // MOTOR DEL CHAT (LADO GRUERO)
         function iniciarChatGruero(asistenciaId) {
             if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
-            
             chatChannelGruero = window.dbApp.channel(`chat-gruero-${asistenciaId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_viales', filter: `asistencia_id=eq.${asistenciaId}` },
             (payload) => {
@@ -350,48 +268,51 @@
                 const chatBox = document.getElementById('vial-chat-box-gruero');
                 const msgDiv = document.createElement('div');
                 
-                // Darle color amarillo al gruero y gris al ciudadano
                 if(isMe) {
                     msgDiv.style.cssText = "background:rgba(250, 204, 21, 0.2); color:var(--yellow-grua); align-self:flex-end; border:1px solid rgba(250, 204, 21, 0.3); border-radius:18px 18px 2px 18px; padding:12px 16px; max-width:85%; font-size:0.85rem;";
                 } else {
                     msgDiv.style.cssText = "background:var(--navy-light); color:white; align-self:flex-start; border-radius:18px 18px 18px 2px; padding:12px 16px; max-width:85%; border:1px solid rgba(255,255,255,0.1); font-size:0.85rem;";
                 }
-                
                 msgDiv.innerText = payload.new.mensaje;
                 chatBox.appendChild(msgDiv);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }).subscribe();
         }
 
-        // ENVIAR MENSAJE A LA BASE DE DATOS
         async function enviarMensajeGruero() {
             const input = document.getElementById('input-chat-gruero');
             const msg = input.value.trim();
-            if (!msg || !vialActualId) return;
+            if (!msg || !currentAsistenciaId) return;
 
-            await window.dbApp.from('mensajes_viales').insert([{ asistencia_id: vialActualId, emisor_id: currentUser.id, mensaje: msg }]);
+            await window.dbApp.from('mensajes_viales').insert([{ asistencia_id: currentAsistenciaId, emisor_id: currentUser.id, mensaje: msg }]);
             input.value = '';
         }
 
-        // FINALIZAR SERVICIO Y VOLVER AL RADAR
         async function finalizarServicioGrua() {
             if (gruaCallFrame) { gruaCallFrame.leave(); gruaCallFrame.destroy(); gruaCallFrame = null; }
             if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
             
             const overlay = document.getElementById('video-overlay-gruero');
             if (overlay) overlay.remove();
-s
-            // Restaurar el panel principal
+
             document.getElementById('radar-visual').style.display = 'flex';
             document.getElementById('btn-toggle').style.display = 'block';
             
-            // Marcar en Supabase como finalizado
-            await window.dbApp.from('asistencias_viales').update({ estado: 'finalizada' }).eq('id', vialActualId);
+            await window.dbApp.from('asistencias_viales').update({ estado: 'finalizada' }).eq('id', currentAsistenciaId);
             showToast("Servicio Finalizado. ¡Buen trabajo!");
             
-            vialActualId = null;
             currentAsistenciaId = null;
+            salaGruaUrl = null;
         }
+
+        async function logout() { 
+            if(isOnline) await toggleServicio(); 
+            await window.dbApp.auth.signOut(); 
+            window.location.href = 'index.html'; 
+        }
+
+        checkUser();
+        iniciarRadarGruas();
     </script>
 </body>
 </html>
