@@ -242,68 +242,57 @@
             overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
             
             overlay.innerHTML = `
-                <style>
-                    .map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); }
-                    /* Ocultamos el cuadro feo de texto de direcciones de Leaflet Routing */
-                    .leaflet-routing-container { display: none !important; }
-                </style>
+                <style>.map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); } .leaflet-routing-container { display: none !important; }</style>
                 
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
                     <div><p style="font-size:0.6rem; color:var(--gray-400);">ESTADO DEL SERVICIO</p><h3 style="color:var(--green-active); font-size:0.9rem;">✅ EN RUTA AL CLIENTE</h3></div>
                     <button onclick="finalizarServicioGrua()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">FINALIZAR</button>
                 </div>
 
-                <div id="vial-video-container-gruero" style="height:40%; width:100%; background:#000; display:none;"></div>
+                <div id="vial-video-container-gruero" style="position:absolute; top:80px; left:5%; width:90%; height:40%; background:#000; border-radius:16px; z-index:6000; display:none; box-shadow:0 15px 35px rgba(0,0,0,0.8); border:2px solid var(--gold); overflow:hidden;"></div>
                 
-                <div id="vial-map-placeholder-gruero" style="height:40%; width:100%; position:relative; z-index:1;">
+                <div id="vial-map-placeholder-gruero" style="height:35%; width:100%; position:relative; z-index:1;">
                     <div id="mapa-realtime-gruero" style="width:100%; height:100%; background:#111; display:flex; align-items:center; justify-content:center;"><p style="color:gray;">Trazando ruta al ciudadano...</p></div>
                 </div>
 
-                <div id="vial-chat-box-gruero" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);">
-                    <div class="msg bot" style="background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3); align-self:flex-start; padding:12px; border-radius:12px;">📡 Sala conectada. Toca al cliente (👤) en el mapa para iniciar Navegación en Google Maps.</div>
-                </div>
+                <div id="contenedor-boton-maps" style="padding:10px; background:var(--navy-light); border-bottom:1px solid rgba(255,255,255,0.05); text-align:center;">
+                    </div>
 
-                <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
-                    <button id="btn-video-gruero" onclick="toggleVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer;">📹 VIDEO</button>
+                <div id="vial-chat-box-gruero" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);"></div>
+
+                <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05); align-items:center;">
+                    <button id="btn-video-gruero" onclick="toggleVideoGruero()" style="background:var(--gold); color:var(--navy); border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer;" title="Video">📹</button>
                     <input type="text" id="input-chat-gruero" placeholder="Escribe al cliente..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;">
-                    <button onclick="enviarMensajeGruero()" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white; cursor:pointer;">🚀</button>
+                    <button onclick="enviarMensajeGruero()" style="background:var(--blue-trust); border:none; padding:10px 15px; border-radius:10px; color:white; cursor:pointer;">🚀</button>
                 </div>
             `;
             document.body.appendChild(overlay);
 
-            // INICIAR MAPA REAL Y TRAZAR RUTA
             cargarMapa(async () => {
                 if (mapVial) mapVial.remove();
                 const { data: asistencia } = await window.dbApp.from('asistencias_viales').select('*').eq('id', currentAsistenciaId).single();
                 
+                // INYECTAR BOTÓN GIGANTE DE GOOGLE MAPS PARA EL GRUERO
+                const googleMapsLink = `https://www.google.com/maps?q=${asistencia.ubicacion_origen_lat},${asistencia.ubicacion_origen_lng}`;
+                document.getElementById('contenedor-boton-maps').innerHTML = `<a href="${googleMapsLink}" target="_blank" style="display:inline-block; width:100%; background:#2563EB; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:0.9rem; box-shadow:0 4px 10px rgba(37,99,235,0.4);">🗺️ ABRIR EN GOOGLE MAPS (GPS NATIVO)</a>`;
+
                 mapVial = L.map('mapa-realtime-gruero').setView([asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng], 15);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapVial);
                 
-                // Enlace profundo para que abra Google Maps Nativo en el celular del gruero
-                const googleMapsLink = `https://www.google.com/maps/dir/?api=1&destination=${asistencia.ubicacion_origen_lat},${asistencia.ubicacion_origen_lng}`;
-                
                 const iconC = L.divIcon({ html: '👤', className: 'map-icon-marker' });
-                markerCiudadano = L.marker([asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng], {icon: iconC})
-                    .addTo(mapVial)
-                    .bindPopup(`<div style="text-align:center; padding:5px;"><b>Cliente Esperando</b><br><br><a href="${googleMapsLink}" target="_blank" style="background:#2563EB; color:white; padding:8px 12px; border-radius:8px; text-decoration:none; font-weight:bold; display:block;">🗺️ Navegar con Google Maps</a></div>`);
+                markerCiudadano = L.marker([asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng], {icon: iconC}).addTo(mapVial).bindPopup('Cliente');
                 
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const iconG = L.divIcon({ html: '🚜', className: 'map-icon-marker' });
                     markerGruero = L.marker([pos.coords.latitude, pos.coords.longitude], {icon: iconG}).addTo(mapVial).bindPopup('Tu ubicación');
                     
-                    // Magia Negra: Dibujar la ruta azul por las calles de forma automática
                     controlRuta = L.Routing.control({
                         waypoints: [
-                            L.latLng(pos.coords.latitude, pos.coords.longitude), // Desde el Gruero
-                            L.latLng(asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng) // Hasta el Ciudadano
+                            L.latLng(pos.coords.latitude, pos.coords.longitude), 
+                            L.latLng(asistencia.ubicacion_origen_lat, asistencia.ubicacion_origen_lng)
                         ],
-                        addWaypoints: false,
-                        routeWhileDragging: false,
-                        showAlternatives: false,
-                        fitSelectedRoutes: true,
-                        lineOptions: {
-                            styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] // Línea azul gruesa tipo Uber
-                        }
+                        addWaypoints: false, routeWhileDragging: false, showAlternatives: false, fitSelectedRoutes: true,
+                        lineOptions: { styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] }
                     }).addTo(mapVial);
                 });
             });
@@ -314,15 +303,14 @@
         let isVideoActiveGruero = false;
         async function toggleVideoGruero() {
             const btnVideo = document.getElementById('btn-video-gruero');
-            const mapCont = document.getElementById('vial-map-placeholder-gruero');
             const vidCont = document.getElementById('vial-video-container-gruero');
 
-            if (!vialActualUrl) { alert("Error: Enlace de video no disponible."); return; }
+            if (!vialActualUrl) return;
 
             if (!isVideoActiveGruero) {
-                mapCont.style.display = 'none';
+                // FLOTANTE: Mostramos el video sin esconder el mapa
                 vidCont.style.display = 'block';
-                btnVideo.innerText = "⏳...";
+                btnVideo.innerText = "⏳";
 
                 try {
                     if (!gruaCallFrame) {
@@ -333,19 +321,18 @@
                     await gruaCallFrame.join({ url: vialActualUrl });
                     btnVideo.style.background = "#EF4444";
                     btnVideo.style.color = "white";
-                    btnVideo.innerText = "📴 APAGAR VIDEO";
+                    btnVideo.innerText = "📴";
                     isVideoActiveGruero = true;
                 } catch(e) {
                     window.open(vialActualUrl, '_blank');
-                    btnVideo.innerText = "📹 ACTIVO (EXTERNO)";
+                    btnVideo.innerText = "📹 (EXT)";
                 }
             } else {
                 if (gruaCallFrame) await gruaCallFrame.leave();
                 vidCont.style.display = 'none';
-                mapCont.style.display = 'block'; // Volvemos a mostrar el mapa real
                 btnVideo.style.background = "var(--gold)";
                 btnVideo.style.color = "var(--navy)";
-                btnVideo.innerText = "📹 CONECTAR VIDEO";
+                btnVideo.innerText = "📹";
                 isVideoActiveGruero = false;
             }
         }
@@ -358,8 +345,15 @@
                 const isMe = payload.new.emisor_id === currentUser.id;
                 const chatBox = document.getElementById('vial-chat-box-gruero');
                 const msgDiv = document.createElement('div');
+                
+                // Hacer el link de Google Maps Clickable en el chat también
+                let textoMensaje = payload.new.mensaje;
+                if (textoMensaje.includes("http")) {
+                    textoMensaje = textoMensaje.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#2563EB; text-decoration:underline;">$1</a>');
+                }
+
                 msgDiv.style.cssText = isMe ? "background:rgba(250,204,21,0.2); color:var(--yellow-grua); align-self:flex-end; padding:10px 15px; border-radius:15px; border:1px solid rgba(250,204,21,0.3);" : "background:var(--navy); color:white; align-self:flex-start; padding:10px 15px; border-radius:15px; border:1px solid rgba(255,255,255,0.1);";
-                msgDiv.innerText = payload.new.mensaje;
+                msgDiv.innerHTML = textoMensaje;
                 chatBox.appendChild(msgDiv);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }).subscribe();
@@ -371,28 +365,6 @@
             if (!msg || !currentAsistenciaId) return;
             await window.dbApp.from('mensajes_viales').insert([{ asistencia_id: currentAsistenciaId, emisor_id: currentUser.id, mensaje: msg }]);
             input.value = '';
-        }
-        async function finalizarServicioGrua() {
-            if (gruaCallFrame) { gruaCallFrame.leave(); gruaCallFrame.destroy(); gruaCallFrame = null; }
-            if (chatChannelGruero) window.dbApp.removeChannel(chatChannelGruero);
-            
-            const overlay = document.getElementById('video-overlay-gruero');
-            if (overlay) overlay.remove();
-
-            document.getElementById('radar-visual').style.display = 'flex';
-            document.getElementById('btn-toggle').style.display = 'block';
-            
-            await window.dbApp.from('asistencias_viales').update({ estado: 'finalizada' }).eq('id', currentAsistenciaId);
-            showToast("Servicio Finalizado. ¡Buen trabajo!");
-            
-            currentAsistenciaId = null;
-            salaGruaUrl = null;
-        }
-
-        async function logout() { 
-            if(isOnline) await toggleServicio(); 
-            await window.dbApp.auth.signOut(); 
-            window.location.href = 'index.html'; 
         }
 
         checkUser();

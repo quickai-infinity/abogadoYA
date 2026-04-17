@@ -865,14 +865,14 @@
         overlay.innerHTML = `
             <style>.map-icon-marker { font-size:20px; background:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.5); border: 2px solid var(--navy); }</style>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
                 <div><p style="font-size:0.6rem; color:var(--gray-400);">ESTADO</p><h3 id="vial-status-txt" style="color:var(--gold); font-size:0.9rem;">⏳ BUSCANDO UNIDAD...</h3></div>
                 <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">CANCELAR</button>
             </div>
 
-            <div id="vial-video-container" style="height:40%; width:100%; background:#000; display:none;"></div>
+            <div id="vial-video-container" style="position:absolute; top:80px; left:5%; width:90%; height:40%; background:#000; border-radius:16px; z-index:6000; display:none; box-shadow:0 15px 35px rgba(0,0,0,0.8); border:2px solid var(--gold); overflow:hidden;"></div>
             
-            <div id="vial-map-placeholder" style="height:40%; width:100%; position:relative; z-index:1;">
+            <div id="vial-map-placeholder" style="height:35%; width:100%; position:relative; z-index:1;">
                 <div id="mapa-realtime" style="width:100%; height:100%; background:#111; display:flex; align-items:center; justify-content:center;"><p style="color:gray;">Cargando mapa satelital...</p></div>
             </div>
             
@@ -884,15 +884,15 @@
                 <div class="msg bot" id="msg-estado-vial" style="background:rgba(250, 204, 21, 0.1); color:var(--gold); border:1px solid rgba(250, 204, 21, 0.3);">📡 Conectando con la central. Espera en esta pantalla.</div>
             </div>
 
-            <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
-                <button id="btn-conectar-video" onclick="toggleVideoGrua()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer; display:none;">📹 VIDEO</button>
-                <input type="text" id="input-chat-vial" placeholder="Mensaje al gruero..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;" disabled>
-                <button id="btn-enviar-vial" onclick="enviarMensajeVial()" style="background:var(--gray-500); border:none; padding:0 15px; border-radius:10px; color:white; cursor:pointer;" disabled>🚀</button>
+            <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05); align-items:center;">
+                <button id="btn-conectar-video" onclick="toggleVideoGrua()" style="background:var(--gold); color:var(--navy); border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; display:none;" title="Video">📹</button>
+                <button id="btn-enviar-gps" onclick="enviarGPSManual()" style="background:#2563EB; color:white; border:none; padding:10px; border-radius:10px; font-size:1.1rem; cursor:pointer; display:none;" title="Enviar mi GPS">📍</button>
+                <input type="text" id="input-chat-vial" placeholder="Mensaje..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;" disabled>
+                <button id="btn-enviar-vial" onclick="enviarMensajeVial()" style="background:var(--gray-500); border:none; padding:10px 15px; border-radius:10px; color:white; cursor:pointer;" disabled>🚀</button>
             </div>
         `;
         document.body.appendChild(overlay);
 
-        // INICIALIZAR MAPA EN EL LUGAR DEL CIUDADANO
         cargarMapa(() => {
             if (mapVial) mapVial.remove();
             mapVial = L.map('mapa-realtime').setView([userLocation.lat, userLocation.lng], 15);
@@ -913,25 +913,27 @@
         const msgDiv = document.createElement('div');
         msgDiv.className = 'msg bot';
         msgDiv.style.cssText = "background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3); padding:10px; border-radius:10px;";
-        msgDiv.innerText = "✅ El gruero ha aceptado tu solicitud. Puedes escribirle o ver su ubicación en vivo arriba.";
+        msgDiv.innerText = "✅ El gruero ha aceptado tu solicitud. Se ha enviado tu GPS al chat.";
         chatBox.appendChild(msgDiv);
 
         document.getElementById('input-chat-vial').disabled = false;
         document.getElementById('btn-enviar-vial').disabled = false;
         document.getElementById('btn-enviar-vial').style.background = "var(--blue-trust)";
         document.getElementById('btn-conectar-video').style.display = "block";
+        document.getElementById('btn-enviar-gps').style.display = "block";
 
         iniciarChatVial(vialActualId);
+
+        // ENVÍO AUTOMÁTICO DEL LINK GPS AL GRUERO
+        enviarGPSManual();
 
         if (trackInterval) clearInterval(trackInterval);
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
             if (unidad && userLocation) {
-                // ACTUALIZAR EL MAPA REAL Y CENTRARLO
                 if (mapVial && window.L) {
-                    if (markerGruero) {
-                        markerGruero.setLatLng([unidad.lat_actual, unidad.lng_actual]);
-                    } else {
+                    if (markerGruero) { markerGruero.setLatLng([unidad.lat_actual, unidad.lng_actual]); } 
+                    else {
                         const iconG = L.divIcon({ html: '🚜', className: 'map-icon-marker' });
                         markerGruero = L.marker([unidad.lat_actual, unidad.lng_actual], {icon: iconG}).addTo(mapVial).bindPopup('Grúa');
                     }
@@ -939,7 +941,6 @@
                     mapVial.fitBounds(group.getBounds(), {padding: [30, 30]});
                 }
 
-                // ACTUALIZAR TEXTO DE DISTANCIA
                 const R = 6371e3;
                 const p1 = userLocation.lat * Math.PI/180, p2 = unidad.lat_actual * Math.PI/180;
                 const dp = (unidad.lat_actual-userLocation.lat) * Math.PI/180;
@@ -956,15 +957,14 @@
     let isVideoActiveVial = false;
     async function toggleVideoGrua() {
         const btnVideo = document.getElementById('btn-conectar-video');
-        const mapCont = document.getElementById('vial-map-placeholder');
         const vidCont = document.getElementById('vial-video-container');
 
-        if (!vialActualUrl) { alert("Error de servidor: Enlace de video no generado."); return; }
+        if (!vialActualUrl) return;
 
         if (!isVideoActiveVial) {
-            mapCont.style.display = 'none';
+            // PRENDER VIDEO: Aparece flotando, NO esconde el mapa
             vidCont.style.display = 'block';
-            btnVideo.innerText = "⏳...";
+            btnVideo.innerText = "⏳";
 
             try {
                 if(!window._dailyGruaFrame) {
@@ -975,21 +975,28 @@
                 await window._dailyGruaFrame.join({ url: vialActualUrl, token: vialActualToken });
                 btnVideo.style.background = "#EF4444";
                 btnVideo.style.color = "white";
-                btnVideo.innerText = "📴 APAGAR VIDEO";
+                btnVideo.innerText = "📴";
                 isVideoActiveVial = true;
             } catch (e) {
                 window.open(vialActualUrl, '_blank');
-                btnVideo.innerText = "📹 VIDEO ACTIVO (EXTERNO)";
+                btnVideo.innerText = "📹 (EXT)";
             }
         } else {
+            // APAGAR VIDEO
             if(window._dailyGruaFrame) await window._dailyGruaFrame.leave();
             vidCont.style.display = 'none';
-            mapCont.style.display = 'block';
             btnVideo.style.background = "var(--gold)";
             btnVideo.style.color = "var(--navy)";
-            btnVideo.innerText = "📹 CONECTAR VIDEO";
+            btnVideo.innerText = "📹";
             isVideoActiveVial = false;
         }
+    }
+
+    async function enviarGPSManual() {
+        if (!userLocation || !vialActualId) return;
+        const link = `📍 Mi ubicación exacta:\nhttps://www.google.com/maps?q=${userLocation.lat},${userLocation.lng}`;
+        await dbApp.from('mensajes_viales').insert([{ asistencia_id: vialActualId, emisor_id: currentUser.id, mensaje: link }]);
+        showToast("📍 GPS enviado al gruero");
     }
 
     function iniciarChatVial(asistenciaId) {
@@ -1000,8 +1007,15 @@
             const isMe = payload.new.emisor_id === currentUser.id;
             const chatBox = document.getElementById('vial-chat-box');
             const msgDiv = document.createElement('div');
+            
+            // Si el mensaje incluye un link de Google Maps, lo volvemos clickable
+            let textoMensaje = payload.new.mensaje;
+            if (textoMensaje.includes("http")) {
+                textoMensaje = textoMensaje.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#FACC15; text-decoration:underline;">$1</a>');
+            }
+
             msgDiv.style.cssText = isMe ? "background:var(--blue-trust); color:white; align-self:flex-end; padding:10px 15px; border-radius:15px;" : "background:var(--navy-light); border:1px solid rgba(255,255,255,0.1); color:white; align-self:flex-start; padding:10px 15px; border-radius:15px;";
-            msgDiv.innerText = payload.new.mensaje;
+            msgDiv.innerHTML = textoMensaje;
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }).subscribe();
