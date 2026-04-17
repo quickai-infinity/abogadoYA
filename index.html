@@ -783,28 +783,149 @@
 <body>
 <nav>
     <a href="#" class="logo">
-      <div class="logo-icon" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care)); color: var(--yellow-fast);">S</div>
+      <div class="logo-icon" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care)); color: var(--yellow-fast); font-weight:900;">S</div>
       <div class="logo-text">Secure<span style="color: var(--purple-care);">Flow</span></div>
     </a>
     <div style="display: flex; gap: 8px; align-items: center;">
       <button onclick="showLogin()" class="btn-entrar-header">Entrar</button>
-      <a href="#registro" class="nav-cta-header" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care));">Solicitar Demo</a>
+      <a href="#registro" class="nav-cta-header" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care)); padding: 0.5rem 1.2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);">Solicitar Demo B2B</a>
     </div>
   </nav>
 
   <section class="hero">
-    <div class="hero-badge">
-      <span style="background: var(--yellow-fast);"></span> Logística de Asistencia Auditada
+    
+    <style>
+      :root {
+        /* Paleta B2B: Confianza, Cuidado, Rapidez */
+        --hologram-cyan: #22D3EE;
+        --hologram-magenta: #EC4899;
+        --hologram-glow: rgba(147, 51, 234, 0.3);
+        --text-subtle: #CBD5E1;
+      }
+
+      /* 1. FONDO CINEMÁTICO DE EMPATÍA (Sonrisas, Siluetas, Seguridad flotantes) */
+      .hero::after {
+        content: ''; position: absolute; inset: 0; opacity: 0.4; pointer-events: none;
+        background-image: 
+          radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.1) 0%, transparent 20%),
+          radial-gradient(circle at 80% 70%, rgba(29, 78, 216, 0.08) 0%, transparent 20%);
+        animation: empathetic-fluid-aura 20s infinite ease-in-out;
+      }
+
+      /* Generando siluetas y sonrisas difuminadas flotantes con pseudo-elementos */
+      .hero-empathy-symbols::before, .hero-empathy-symbols::after {
+        content: '😊 👤 🛡️ ❤️ 😊 👤'; /* Símbolos Unicode de Salud, Cuidado y Seguridad */
+        position: absolute; font-size: 3rem; color: rgba(255,255,255,0.03);
+        filter: blur(10px); white-space: nowrap; animation: empathetic-symbols-float 30s infinite linear;
+      }
+      .hero-empathy-symbols::before { top: 20%; left: -50%; animation-delay: 0s; }
+      .hero-empathy-symbols::after { top: 60%; left: 50%; animation-delay: -15s; font-size: 2.5rem; opacity: 0.5; }
+
+      @keyframes empathetic-symbols-float {
+        0% { transform: translateX(0) translateY(0) rotate(0deg); opacity: 0; filter: blur(12px); }
+        10%, 90% { opacity: 1; filter: blur(8px); }
+        100% { transform: translateX(150vw) translateY(-50px) rotate(20deg); opacity: 0; filter: blur(15px); }
+      }
+
+      /* 2. EL HOLOGRAMA "SECUREFLOW" (Glitches, Aberración Cromática, Slow Desvanecido) */
+      .hologram-brand-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; position: relative; width: 100%; margin-bottom: 3rem;
+        perspective: 1000px; /* Para efecto 3D flotante */
+      }
+
+      .hologram-name {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(3.5rem, 12vw, 8rem); font-weight: 900;
+        letter-spacing: -4px; color: #fff; position: relative;
+        text-shadow: 0 0 15px #fff, 0 0 30px var(--hologram-cyan);
+        opacity: 0; transform: translateY(20px) rotateX(10deg);
+        animation: hologram-cinematic-sequence 28s ease-out infinite;
+      }
+
+      /* Aberración Cromática (Separación de colores) */
+      .hologram-name::before, .hologram-name::after {
+        content: 'SecureFlow'; position: absolute; inset: 0; opacity: 0.8; mix-blend-mode: screen;
+      }
+      .hologram-name::before { color: var(--hologram-cyan); text-shadow: -3px 0 15px var(--hologram-cyan); animation: chromatic-shift-cyan 28s infinite; }
+      .hologram-name::after { color: var(--hologram-magenta); text-shadow: 3px 0 15px var(--hologram-magenta); animation: chromatic-shift-magenta 28s infinite; }
+
+      @keyframes chromatic-shift-cyan { 0%, 100% { transform: translateX(-3px) translateY(1px); opacity: 0.8; } 5% { transform: translateX(3px) translateY(-1px); opacity: 1; filter: blur(1px); } }
+      @keyframes chromatic-shift-magenta { 0%, 100% { transform: translateX(3px) translateY(-1px); opacity: 0.8; } 5% { transform: translateX(-3px) translateY(1px); opacity: 1; filter: blur(1px); } }
+
+      /* Secuencia Completa: Glitch, Estabilización Flotante 3D, Desvanecimiento Lento y Difuminado */
+      @keyframes hologram-cinematic-sequence {
+        0% { opacity: 0; transform: translateY(20px) rotateX(20deg) scale(1.1); filter: blur(15px); }
+        1% { opacity: 1; filter: blur(0px); transform: translateY(0) rotateX(10deg) scale(1); }
+        2% { filter: blur(2px); transform: translateX(-10px) skewX(10deg); text-shadow: 0 0 30px #fff; }
+        3% { filter: blur(0px); transform: translateX(10px) skewX(-10deg); text-shadow: 0 0 40px #fff, 0 0 50px var(--yellow-fast); }
+        4% { transform: translateX(0) skewX(0); filter: blur(0px); }
+        
+        /* Estabilización Flotante 3D Versátil */
+        10%, 40% { opacity: 1; transform: rotateX(15deg) rotateY(15deg) translateY(0); filter: none; text-shadow: 0 0 30px #fff; }
+        45% { transform: rotateX(-10deg) rotateY(-15deg) translateY(-10px); }
+        55% { transform: rotateX(10deg) rotateY(10deg) translateY(0); }
+        
+        /* Inicio del Desvanecimiento Lento (Slow Desvanecido) y Difuminado */
+        60% { opacity: 0.8; transform: rotateX(-5deg) rotateY(-5deg) translateY(-30px) scale(0.98); filter: blur(2px); }
+        80% { opacity: 0.5; transform: rotateX(5deg) rotateY(10deg) translateY(-60px) scale(0.95); filter: blur(6px); }
+        95% { opacity: 0.1; transform: rotateX(-10deg) rotateY(-5deg) translateY(-90px) scale(0.92); filter: blur(12px); }
+        100% { opacity: 0; transform: translateY(-120px) scale(0.9) rotateX(0deg); filter: blur(20px); }
+      }
+
+      /* 3. SLIDER DE NEUROMARKETING SUTIL Y DIFUMINADO */
+      .benefit-slider {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        height: 2rem; overflow: hidden; color: var(--text-subtle);
+        font-size: 0.85rem; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;
+        position: relative; width: 100%; max-width: 400px;
+        opacity: 0; animation: fadeDownSutble 1s ease-out forwards 4s; /* Entra tras el holograma */
+        filter: blur(0.5px); /* Medio difuminado corporativo */
+      }
+      @keyframes fadeDownSutble { to { opacity: 1; filter: blur(0px); } }
+
+      .benefit-slider span {
+        display: block; opacity: 0; position: absolute; text-align: center; width: 100%;
+        animation: auto-sliding-desvanecido 24s infinite ease-in-out;
+      }
+
+      /* Tiempos de Slider Dinámicos Sutiles */
+      .benefit-slider span:nth-child(1) { animation-delay: 0s; }
+      .benefit-slider span:nth-child(2) { animation-delay: 6s; }
+      .benefit-slider span:nth-child(3) { animation-delay: 12s; }
+      .benefit-slider span:nth-child(4) { animation-delay: 18s; }
+
+      @keyframes auto-sliding-desvanecido {
+        0%, 5% { opacity: 0; transform: translateY(15px) blur(3px); }
+        10%, 20% { opacity: 1; transform: translateY(0) blur(0px); } /* Retención del beneficio */
+        25%, 30% { opacity: 0; transform: translateY(-15px) blur(3px); }
+        100% { opacity: 0; }
+      }
+
+    </style>
+
+    <div class="hero-empathy-symbols"></div>
+
+    <div class="hero-badge" style="background: rgba(29, 78, 216, 0.1); border-color: rgba(29, 78, 216, 0.2); color: var(--text-subtle);">
+      <span style="background: var(--yellow-fast); animation: pulse-dot 2s infinite;"></span> Red de Asistencia Auditada B2B
     </div>
 
-    <h1>Infraestructura de Asistencia <span class="highlight" style="background: linear-gradient(135deg, var(--yellow-fast), var(--purple-care)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Ultra-Rápida</span></h1>
-
-    <p class="hero-sub">Conecte a sus asegurados con grúas, mecánicos o peritos en segundos vía videollamada y GPS en vivo. Reduzca OPEX, evite fraudes y garantice un NPS extraordinario.</p>
+    <div class="hologram-brand-container">
+      <h1 class="hologram-name">SecureFlow</h1>
+      
+      <div class="benefit-slider">
+        <span>Asistencia Auditada 24/7</span>
+        <span>Cuidado Empático al Cliente</span>
+        <span>Ahorro Operativo Automatizado</span>
+        <span>Red Logística Inteligente</span>
+      </div>
+    </div>
 
     <div class="hero-buttons">
-      <a href="#registro" class="btn-primary" onclick="switchTab('ciudadano')" style="background: var(--purple-care);">📊 Solicitar Demo Corporativa</a>
-      <a href="#registro" class="btn-secondary" onclick="switchTab('gruero')">🏗️ Registrar Flota Local</a>
+      <a href="#registro" class="btn-primary" onclick="switchTab('ciudadano')" style="background: var(--purple-care); padding: 1rem 2.5rem; border-radius: 12px; font-weight:800; box-shadow: 0 8px 30px rgba(147, 51, 234, 0.4);">📊 Solicitar Demo Corporativa</a>
+      <a href="#registro" class="btn-secondary" onclick="switchTab('gruero')" style="border-radius: 12px; color: var(--gray-200);">🏗️ Unirse como Proveedor</a>
     </div>
+
   </section>
 
   <section class="section">

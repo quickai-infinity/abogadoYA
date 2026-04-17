@@ -750,7 +750,7 @@
                     ciudadano_id: user.id,
                     ubicacion_origen_lat: userLocation.lat,
                     ubicacion_origen_lng: userLocation.lng,
-                    sala_webrtc_url: salaData.url, // Guardamos la sala
+                    sala_webrtc_url: salaData.url, 
                     estado: 'pendiente',
                     costo_final: costoSOS
                 }]).select('id').single();
@@ -758,47 +758,67 @@
                 if (error) throw error;
                 const asistenciaId = asistenciaRegistrada.id;
 
-                // 3. Escuchar en tiempo real cuando el gruero acepte
-               // 3. Escuchar en tiempo real cuando el gruero acepte
-                // 3. Escuchar en tiempo real cuando el gruero acepte
+                let gruaAceptada = false;
+
+                // FUNCION INTERNA PARA ABRIR LA CÁMARA (Asegura que no falle)
+                const abrirCamaraCiudadano = () => {
+                    if (gruaAceptada) return; // Evita que se abra dos veces
+                    gruaAceptada = true;
+                    
+                    mostrarNotificacion("🚜 ¡Gruero en camino! Abriendo cámara...", "exito");
+
+                    const videoOverlay = document.createElement('div');
+                    videoOverlay.id = 'video-overlay-grua';
+                    videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:#000; display:flex; flex-direction:column;';
+                    
+                    videoOverlay.innerHTML = `
+                        <div style="padding:15px 20px; background:rgba(10,22,40,0.95); color:var(--gold); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span style="font-size:1.5rem; animation: pulse 2s infinite;">🔴</span>
+                                <b style="font-size:1.1rem;">ASISTENCIA EN VIVO</b>
+                            </div>
+                            <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:10px 20px; border-radius:10px; font-weight:900; cursor:pointer; font-size:1rem;">COLGAR</button>
+                        </div>
+                        <div id="daily-grua-frame" style="flex:1; width:100%; background:#111;"></div>
+                    `;
+                    document.body.appendChild(videoOverlay);
+
+                    setTimeout(async () => {
+                        const frame = window.DailyIframe.createFrame(document.getElementById('daily-grua-frame'), {
+                            showLeaveButton: false, 
+                            iframeStyle: { width: '100%', height: '100%', border: '0' }
+                        });
+                        window._dailyGruaFrame = frame;
+                        
+                        // FIX CLAVE: Usamos la URL almacenada localmente, nunca falla.
+                        await frame.join({ url: salaData.url });
+                    }, 500);
+                };
+
+                // 3. Escuchar en tiempo real (Supabase Realtime)
                 const canalGrua = dbApp.channel(`grua-${asistenciaId}`)
                 .on('postgres_changes', {
                     event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${asistenciaId}`
-                }, async (payload) => {
+                }, (payload) => {
                     if (payload.new.estado === 'aceptada') {
-                        mostrarNotificacion("🚜 ¡Gruero en camino! Abriendo cámara...", "exito");
-                        dbApp.removeChannel(canalGrua); // Apagamos el radar
-
-                        // 4. Crear interfaz de video
-                        const videoOverlay = document.createElement('div');
-                        videoOverlay.id = 'video-overlay-grua';
-                        videoOverlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:#000; display:flex; flex-direction:column;';
-                        
-                        videoOverlay.innerHTML = `
-                            <div style="padding:15px 20px; background:rgba(10,22,40,0.95); color:var(--gold); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1);">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <span style="font-size:1.5rem; animation: pulse 2s infinite;">🔴</span>
-                                    <b style="font-size:1.1rem;">ASISTENCIA EN VIVO</b>
-                                </div>
-                                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:10px 20px; border-radius:10px; font-weight:900; cursor:pointer; font-size:1rem;">COLGAR</button>
-                            </div>
-                            <div id="daily-grua-frame" style="flex:1; width:100%; background:#111;"></div>
-                        `;
-                        document.body.appendChild(videoOverlay);
-
-                        // Damos 500ms al navegador para renderizar el HTML antes de inyectar el iframe
-                        setTimeout(async () => {
-                            const frame = window.DailyIframe.createFrame(document.getElementById('daily-grua-frame'), {
-                                showLeaveButton: false, 
-                                iframeStyle: { width: '100%', height: '100%', border: '0' }
-                            });
-                            window._dailyGruaFrame = frame;
-                            
-                            // Usamos la URL exacta que el gruero acaba de aceptar
-                            await frame.join({ url: payload.new.sala_webrtc_url });
-                        }, 500);
+                        dbApp.removeChannel(canalGrua);
+                        abrirCamaraCiudadano();
                     }
                 }).subscribe();
+
+                // 4. BACKUP CORPORATIVO: Verificador de respaldo cada 3 segundos
+                const verificador = setInterval(async () => {
+                    if (gruaAceptada) {
+                        clearInterval(verificador);
+                        return;
+                    }
+                    const { data: checkData } = await dbApp.from('asistencias_viales').select('estado').eq('id', asistenciaId).single();
+                    if (checkData && checkData.estado === 'aceptada') {
+                        clearInterval(verificador);
+                        dbApp.removeChannel(canalGrua);
+                        abrirCamaraCiudadano();
+                    }
+                }, 3000);
 
             } catch (err) {
                 console.error(err);
