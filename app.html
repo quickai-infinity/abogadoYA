@@ -752,14 +752,12 @@
         }
     }
 
-    // ── LÓGICA DE GRÚA INTERACTIVA (HUB SEGURO) ──
+   // ── LÓGICA DE GRÚA (CLON DE ARQUITECTURA ABOGADO) ──
     let trackInterval = null;
-    let urlVideoSalaGlobal = null;
-    let tokenVideoSalaGlobal = null;
 
     async function solicitarGrua() {
         if (!userLocation) { mostrarNotificacion("⚠️ Activa el GPS.", "error"); return; }
-        if (!confirm(`¿Solicitar asistencia vial a tu ubicación actual?`)) return;
+        if (!confirm("¿Solicitar asistencia vial a tu ubicación actual?")) return;
 
         const btn = document.getElementById('ac-grua');
         const oldHtml = btn.innerHTML;
@@ -769,7 +767,7 @@
         try {
             const { data: { user } } = await dbApp.auth.getUser();
             const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
-            if (salaError) throw new Error('Error de video');
+            if (salaError) throw new Error('Falla en servidor de video');
 
             const { data: reg, error: insErr } = await dbApp.from('asistencias_viales').insert([{
                 ciudadano_id: user.id, ubicacion_origen_lat: userLocation.lat, ubicacion_origen_lng: userLocation.lng,
@@ -779,8 +777,8 @@
             if (insErr) throw insErr;
 
             let aceptado = false;
-            
-            // Escuchamos a la base de datos
+
+            // ESCUCHADOR IGUAL AL DE ABOGADO
             const canalVial = dbApp.channel(`vial-${reg.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` }, 
             (payload) => {
@@ -788,9 +786,11 @@
                     aceptado = true;
                     dbApp.removeChannel(canalVial);
                     btn.innerHTML = oldHtml; btn.style.pointerEvents = 'auto';
-                    
-                    // Al aceptar, NO abrimos el video a la fuerza. Abrimos la SALA DE CHAT/GPS.
-                    iniciarHubAsistencia(payload.new.gruero_id, salaData.url, salaData.token);
+
+                    // LA LLAVE: Alerta de confirmación para que el móvil permita abrir la cámara
+                    if (confirm("🚜 ¡Gruero conectado! ¿Entrar a la sala de asistencia ahora?")) {
+                        lanzarSalaVial(payload.new.gruero_id, salaData.url, salaData.token);
+                    }
                 }
             }).subscribe();
 
@@ -800,83 +800,58 @@
         }
     }
 
-    async function iniciarHubAsistencia(grueroId, urlVideo, tokenVideo) {
-        urlVideoSalaGlobal = urlVideo;
-        tokenVideoSalaGlobal = tokenVideo;
+    async function lanzarSalaVial(grueroId, urlVideo, tokenVideo) {
+        // Creamos el Overlay inyectado al body (Igual que el abogado)
+        const overlay = document.createElement('div');
+        overlay.id = 'video-overlay-vial';
+        overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
+        
+        overlay.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold); z-index:10;">
+                <div>
+                    <p style="font-size:0.6rem; color:var(--gray-400); letter-spacing:1px;">DISTANCIA GPS</p>
+                    <h3 id="vial-distancia-txt" style="color:var(--gold); font-size:0.9rem;">-- m</h3>
+                </div>
+                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">CERRAR</button>
+            </div>
+            
+            <div id="vial-video-container" style="height:40%; width:100%; background:#000;"></div>
+            
+            <div id="vial-chat-display" style="flex:1; overflow-y:auto; padding:15px; background:var(--navy-light); display:flex; flex-direction:column; gap:10px;">
+                <div class="msg bot">🚜 El gruero está en camino. Puedes hablar por aquí o por video.</div>
+            </div>
 
-        // Abrimos la sala interactiva de inmediato (Esto nunca lo bloquea el celular)
-        showView('servicio-vial', null);
-        document.getElementById('vial-status-txt').innerText = "🚜 UNIDAD EN CAMINO";
+            <div style="padding:10px; background:var(--navy); display:flex; gap:8px;">
+                <input type="text" id="chat-vial-input" placeholder="Escribe al gruero..." style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3); color:white; outline:none;">
+                <button onclick="enviarMensajeVial('${grueroId}')" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white;">🚀</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
 
-        // Iniciar Rastreo GPS en tiempo real
-        if (trackInterval) clearInterval(trackInterval);
+        // Conectamos Daily.co (El toque del confirm anterior ya dio permiso)
+        const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
+            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+        });
+        window._dailyGruaFrame = frame;
+        await frame.join({ url: urlVideo, token: tokenVideo });
+
+        // Iniciar Rastreo GPS
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
             if (unidad && userLocation) {
                 const dist = calcularDistancia(userLocation.lat, userLocation.lng, unidad.lat_actual, unidad.lng_actual);
                 document.getElementById('vial-distancia-txt').innerText = dist + ' m';
-                if (dist < 50) {
-                    document.getElementById('vial-status-txt').innerText = "✅ EN EL SITIO";
-                    document.getElementById('vial-status-txt').style.color = "var(--green-active)";
-                }
             }
         }, 3000);
-    }
-
-    // ESTA FUNCIÓN SE EJECUTA CUANDO EL USUARIO TOCA "CONECTAR VIDEO" DENTRO DE LA SALA
-    async function abrirVideoVial() {
-        const btnVideo = document.getElementById('btn-iniciar-video');
-        const mapContainer = document.getElementById('mapa-seguimiento');
-        const videoContainer = document.getElementById('vial-video-container');
-
-        // Como el usuario hizo clic, el navegador permite inyectar el iframe
-        btnVideo.innerText = "⏳ ABRIENDO CÁMARA...";
-        btnVideo.disabled = true;
-
-        mapContainer.style.display = 'none'; // Ocultamos el mapa
-        videoContainer.style.display = 'block'; // Mostramos la caja de video
-        
-        const frame = window.DailyIframe.createFrame(videoContainer, {
-            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-        });
-        window._dailyGruaFrame = frame;
-
-        try {
-            if(tokenVideoSalaGlobal) { await frame.join({ url: urlVideoSalaGlobal, token: tokenVideoSalaGlobal }); }
-            else { await frame.join({ url: urlVideoSalaGlobal }); }
-            
-            btnVideo.innerText = "📹 VIDEO ACTIVO";
-            btnVideo.style.background = "var(--green-active)";
-            btnVideo.style.color = "var(--navy)";
-        } catch(e) {
-            mostrarNotificacion("Error al abrir cámara", "error");
-        }
-    }
-
-    function calcularDistancia(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;
-        const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        return Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))));
     }
 
     function endGruaCall() {
         if (window._dailyGruaFrame) { window._dailyGruaFrame.leave(); window._dailyGruaFrame.destroy(); window._dailyGruaFrame = null; }
         if (trackInterval) clearInterval(trackInterval);
-        
-        // Restaurar UI para la próxima vez
-        document.getElementById('mapa-seguimiento').style.display = 'flex';
-        document.getElementById('vial-video-container').style.display = 'none';
-        const btnVideo = document.getElementById('btn-iniciar-video');
-        btnVideo.innerText = "📹 CONECTAR VIDEO";
-        btnVideo.style.background = "var(--gold)";
-        btnVideo.style.color = "var(--navy)";
-        btnVideo.disabled = false;
-
-        showView('home', document.querySelectorAll('.nav-item')[0]);
-        mostrarNotificacion("Sala de asistencia cerrada.", "exito");
+        const overlay = document.getElementById('video-overlay-vial');
+        if (overlay) overlay.remove();
+        mostrarNotificacion("Asistencia finalizada.", "exito");
     }
-
     // ESTA ES LA LÍNEA QUE FALTA PARA ARRANCAR EL MOTOR DE LA APP
     checkUser();
 
