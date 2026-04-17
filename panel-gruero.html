@@ -358,13 +358,61 @@
             }).subscribe();
         }
 
-        async function enviarMensajeGruero() {
+       async function enviarMensajeGruero() {
             const input = document.getElementById('input-chat-gruero');
             const msg = input.value.trim();
             if (!msg || !currentAsistenciaId) return;
             await window.dbApp.from('mensajes_viales').insert([{ asistencia_id: currentAsistenciaId, emisor_id: currentUser.id, mensaje: msg }]);
             input.value = '';
         }
+
+        // --- PEGA LA FUNCIÓN AQUÍ ---
+        async function finalizarServicioGrua() {
+            try {
+                // 1. Cerramos el video de forma segura sin que arroje errores
+                if (gruaCallFrame) { 
+                    await gruaCallFrame.leave().catch(() => {}); // Ignora el error si ya estaba apagado
+                    gruaCallFrame.destroy(); 
+                    gruaCallFrame = null; 
+                    if (typeof isVideoActiveGruero !== 'undefined') isVideoActiveGruero = false;
+                }
+                
+                // 2. Apagamos el canal de chat
+                if (chatChannelGruero) {
+                    window.dbApp.removeChannel(chatChannelGruero);
+                    chatChannelGruero = null;
+                }
+                
+                // 3. Destruimos la ventana negra
+                const overlay = document.getElementById('video-overlay-gruero');
+                if (overlay) overlay.remove();
+
+                // 4. Mostramos el panel original
+                document.getElementById('radar-visual').style.display = 'flex';
+                document.getElementById('btn-toggle').style.display = 'block';
+                
+                // 5. Avisamos a base de datos
+                if (currentAsistenciaId) {
+                    await window.dbApp.from('asistencias_viales').update({ estado: 'finalizada' }).eq('id', currentAsistenciaId);
+                }
+                
+                showToast("Servicio Finalizado. ¡Buen trabajo!");
+                
+                // 6. Limpiamos variables
+                currentAsistenciaId = null;
+                salaGruaUrl = null;
+                if (typeof vialActualUrl !== 'undefined') vialActualUrl = null;
+
+            } catch (err) {
+                console.error("Error al finalizar:", err);
+                // SALVAVIDAS: Si algo falla por falta de internet, forzamos el cerrado visual
+                const overlay = document.getElementById('video-overlay-gruero');
+                if (overlay) overlay.remove();
+                document.getElementById('radar-visual').style.display = 'flex';
+                document.getElementById('btn-toggle').style.display = 'block';
+            }
+        }
+        // ------------------------------
 
         // FUNCIÓN FALTANTE PARA SALIR DEL PANEL
         async function logout() { 
