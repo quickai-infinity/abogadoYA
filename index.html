@@ -723,25 +723,22 @@
     </div>
   </nav>
 
+  <!-- SECCIÓN HERO ACTUALIZADA (SIN BOTÓN) -->
   <section class="hero">
-    
-    <div class="hero-empathy-symbols"></div>
-
-    <div class="hero-badge" style="background: rgba(29, 78, 216, 0.1); border-color: rgba(29, 78, 216, 0.2); color: var(--text-subtle);">
-      <span style="background: var(--yellow-fast); animation: pulse-dot 2s infinite;"></span> Ecosistema de Asistencia y Auditoría
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Ecosistema de Asistencia y Auditoría
     </div>
 
-    <div class="hologram-brand-container">
-      <h1 class="hologram-name">SecureFlow</h1>
-      
-      <div class="benefit-slider">
-        <span>Triaje Visual de Siniestros</span>
-        <span>Despacho de Flotas por GPS</span>
-        <span>Reducción de Costos Operativos</span>
-        <span>Asistencia Legal en 30 Segundos</span>
-      </div>
+    <div class="brand-container" id="brand-container">
+      <h1 class="brand-text" id="brand-text">SecureFlow</h1>
+      <div class="brand-happify">😊</div>
     </div>
-    </section>
+
+    <div class="benefit-ticker">
+      <span class="benefit-text" id="dynamic-benefit">Cargando beneficios...</span>
+    </div>
+  </section>
   <section class="section">
     <p class="section-label">Cómo funciona el Ecosistema</p>
     <h2 class="section-title">Infraestructura unificada para Aseguradoras, Flotas y Ciudadanos.</h2>
@@ -1283,6 +1280,52 @@
       el.style.transition = 'all 0.6s ease';
       observer.observe(el);
     });
+    // --- LÓGICA DE ANIMACIÓN NEUROMARKETING ---
+    const benefits = [
+      "Triaje Visual de Siniestros",
+      "Despacho de Flotas por GPS",
+      "Reducción de Costos Operativos",
+      "Asistencia Legal en 30 Segundos",
+      "Auditoría de Servicios en Vivo"
+    ];
+
+    const themeColors = [
+      'linear-gradient(135deg, #fff 30%, #1D4ED8)', // Azul (Confianza)
+      'linear-gradient(135deg, #fff 30%, #16A34A)', // Verde (Seguridad)
+      'linear-gradient(135deg, #fff 30%, #9333EA)', // Morado (Cuidado)
+      'linear-gradient(135deg, #fff 30%, #FBBF24)'  // Amarillo (Rapidez)
+    ];
+
+    let bIndex = 0;
+    let cIndex = 0;
+    const benefitEl = document.getElementById('dynamic-benefit');
+    const brandContainer = document.getElementById('brand-container');
+    const brandText = document.getElementById('brand-text');
+
+    function animateHeader() {
+      // Cambio de texto de beneficios
+      benefitEl.classList.add('fade-out');
+      setTimeout(() => {
+        bIndex = (bIndex + 1) % benefits.length;
+        benefitEl.textContent = benefits[bIndex];
+        benefitEl.classList.remove('fade-out');
+        benefitEl.classList.add('fade-in');
+        setTimeout(() => benefitEl.classList.remove('fade-in'), 500);
+      }, 500);
+
+      // Efecto Happify y cambio de color (Cada 2 cambios de beneficio)
+      if (bIndex % 2 === 0) {
+        brandContainer.classList.add('is-happy');
+        setTimeout(() => {
+          brandContainer.classList.remove('is-happy');
+          cIndex = (cIndex + 1) % themeColors.length;
+          brandText.style.backgroundImage = themeColors[cIndex];
+        }, 1500);
+      }
+    }
+
+    setInterval(animateHeader, 4000);
+    animateHeader(); // Iniciar inmediatamente
   </script>
 </body>
 </html>
