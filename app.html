@@ -781,18 +781,19 @@
       );
     }
 
-    // ── LÓGICA DE GRÚA Y SALA INTERACTIVA (SIN BLOQUEOS) ──
+    // ── LÓGICA DE GRÚA Y SALA INTERACTIVA (ESTILO ABOGADO) ──
     let trackInterval = null;
     let chatChannelVial = null;
+    let vialActualId = null;
+    let vialActualUrl = null;
+    let vialActualToken = null;
 
     async function solicitarGrua() {
         if (!userLocation) { mostrarNotificacion("⚠️ GPS necesario.", "error"); return; }
         if (!confirm("¿Solicitar asistencia vial ahora?")) return;
 
-        const btn = document.getElementById('ac-grua');
-        const oldHtml = btn.innerHTML;
-        btn.innerHTML = '<span>⏳</span><p>CONECTANDO...</p>';
-        btn.style.pointerEvents = 'none';
+        // 1. ABRIR VENTANA INMEDIATAMENTE AL HACER CLIC (Evita todos los bloqueos del móvil)
+        abrirVentanaVialInmediata();
 
         try {
             const { data: { user } } = await dbApp.auth.getUser();
@@ -802,87 +803,104 @@
                 ciudadano_id: user.id,
                 ubicacion_origen_lat: userLocation.lat,
                 ubicacion_origen_lng: userLocation.lng,
-                sala_webrtc_url: salaData.url, 
+                sala_webrtc_url: salaData.url,
                 estado: 'pendiente'
             }]).select('id').single();
 
             if(insErr) throw insErr;
 
-            let aceptado = false;
+            vialActualId = reg.id;
+            vialActualUrl = salaData.url;
+            vialActualToken = salaData.token;
 
-            // Escuchador de Respuesta
+            // 2. Escuchar cuando el gruero acepta el servicio
             const canalVial = dbApp.channel(`vial-${reg.id}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` }, 
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` },
             (payload) => {
-                if (payload.new.estado === 'aceptada' && !aceptado) {
-                    aceptado = true;
+                if (payload.new.estado === 'aceptada') {
+                    activarSalaInteractiva(payload.new.gruero_id);
                     dbApp.removeChannel(canalVial);
-                    btn.innerHTML = oldHtml; 
-                    btn.style.pointerEvents = 'auto';
-                    
-                    // EL PERMISO CLAVE PARA EL CELULAR
-                    if (confirm("🚜 ¡Gruero en camino! ¿Abrir sala de comunicación en vivo?")) {
-                        lanzarSalaVial(reg.id, payload.new.gruero_id, salaData.url, salaData.token);
-                    }
                 }
             }).subscribe();
 
-        } catch (err) { 
-            mostrarNotificacion("Falla de red.", "error"); 
-            btn.innerHTML = oldHtml; 
-            btn.style.pointerEvents = 'auto';
+            // 3. El Salvavidas Anti-Fallas
+            const verificador = setInterval(async () => {
+                const statusEl = document.getElementById('vial-status-txt');
+                if (!statusEl) { clearInterval(verificador); return; } // Si el usuario canceló
+                if (statusEl.innerText.includes("CAMINO")) { clearInterval(verificador); return; }
+
+                const { data: checkData } = await dbApp.from('asistencias_viales').select('estado, gruero_id').eq('id', reg.id).single();
+                if (checkData && checkData.estado === 'aceptada') {
+                    activarSalaInteractiva(checkData.gruero_id);
+                    clearInterval(verificador);
+                    dbApp.removeChannel(canalVial);
+                }
+            }, 3000);
+
+        } catch (err) {
+            document.getElementById('vial-status-txt').innerText = "⚠️ ERROR DE RED";
+            document.getElementById('vial-status-txt').style.color = "#EF4444";
+            document.getElementById('msg-estado-vial').innerText = "Hubo un fallo de conexión. Cierra la ventana e intenta de nuevo.";
         }
     }
 
-    async function lanzarSalaVial(asistenciaId, grueroId, urlVideo, tokenVideo) {
-        // Overlay de la Sala Interactiva
+    // DISEÑO DE LA SALA INTERACTIVA
+    function abrirVentanaVialInmediata() {
         const overlay = document.createElement('div');
         overlay.id = 'video-overlay-vial';
         overlay.style.cssText = 'position:fixed; inset:0; z-index:5000; background:var(--navy); display:flex; flex-direction:column;';
-        
+
         overlay.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(10,22,40,0.95); border-bottom:1px solid var(--gold);">
                 <div>
-                    <p style="font-size:0.6rem; color:var(--gray-400);">DISTANCIA GPS</p>
-                    <h3 id="vial-distancia-txt" style="color:var(--gold); font-size:0.9rem;">-- m</h3>
+                    <p style="font-size:0.6rem; color:var(--gray-400);">ESTADO DE UNIDAD</p>
+                    <h3 id="vial-status-txt" style="color:var(--gold); font-size:0.9rem;">⏳ BUSCANDO UNIDAD...</h3>
                 </div>
-                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800;">CERRAR</button>
+                <button onclick="endGruaCall()" style="background:#EF4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:800; cursor:pointer;">CANCELAR</button>
             </div>
-            
-            <div id="vial-video-container" style="height:35%; width:100%; background:#000;"></div>
-            
+
+            <div id="vial-video-container" style="height:35%; width:100%; background:#000; display:none;"></div>
+            <div id="vial-map-placeholder" style="height:35%; width:100%; background:#111; display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,0.1);">
+                <p id="distancia-txt" style="color:var(--gray-500); font-size:0.8rem;">📍 Buscando ubicación GPS de la unidad...</p>
+            </div>
+
             <div id="vial-chat-box" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; background:var(--navy-light);">
-                <div class="msg bot">🚜 Canal seguro. La grúa está en ruta.</div>
+                <div class="msg bot" id="msg-estado-vial" style="background:rgba(250, 204, 21, 0.1); color:var(--gold); border:1px solid rgba(250, 204, 21, 0.3);">
+                    📡 Conectando con la central de flotas. Por favor, espera en esta pantalla hasta que un gruero acepte.
+                </div>
             </div>
 
             <div style="padding:10px; background:var(--navy); display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
-                <input type="text" id="input-chat-vial" placeholder="Enviar mensaje..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;">
-                <button onclick="enviarMensajeVial('${asistenciaId}')" style="background:var(--blue-trust); border:none; padding:0 15px; border-radius:10px; color:white;">🚀</button>
+                <button id="btn-conectar-video" onclick="iniciarVideoGrua()" style="background:var(--gold); color:var(--navy); border:none; padding:0 15px; border-radius:10px; font-weight:bold; cursor:pointer; display:none;">📹 VIDEO</button>
+                <input type="text" id="input-chat-vial" placeholder="Mensaje al gruero..." style="flex:1; padding:12px; border-radius:10px; background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.1); outline:none;" disabled>
+                <button id="btn-enviar-vial" onclick="enviarMensajeVial()" style="background:var(--gray-500); border:none; padding:0 15px; border-radius:10px; color:white; cursor:pointer;" disabled>🚀</button>
             </div>
         `;
         document.body.appendChild(overlay);
+    }
 
-        // Conectar Video
-        const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
-            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
-        });
-        window._dailyGruaFrame = frame;
-        await frame.join({ url: urlVideo, token: tokenVideo });
+    // ESTA FUNCIÓN SE EJECUTA CUANDO EL GRUERO LE DA A "ACEPTAR"
+    function activarSalaInteractiva(grueroId) {
+        document.getElementById('vial-status-txt').innerText = "🚜 GRÚA EN CAMINO";
+        document.getElementById('vial-status-txt').style.color = "var(--green-active)";
 
-        // Conectar Chat
-        chatChannelVial = dbApp.channel(`chat-vial-${asistenciaId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_viales', filter: `asistencia_id=eq.${asistenciaId}` }, 
-        (payload) => {
-            const isMe = payload.new.emisor_id === currentUser.id;
-            const chatBox = document.getElementById('vial-chat-box');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = isMe ? 'msg user' : 'msg bot';
-            msgDiv.innerText = payload.new.mensaje;
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }).subscribe();
+        const chatBox = document.getElementById('vial-chat-box');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg bot';
+        msgDiv.style.cssText = "background:rgba(34, 197, 94, 0.1); color:var(--green-active); border:1px solid rgba(34, 197, 94, 0.3);";
+        msgDiv.innerText = "✅ El gruero ha aceptado tu solicitud. El chat está activo.";
+        chatBox.appendChild(msgDiv);
 
-        // Rastreo GPS
+        // Desbloqueamos los controles
+        document.getElementById('input-chat-vial').disabled = false;
+        document.getElementById('btn-enviar-vial').disabled = false;
+        document.getElementById('btn-enviar-vial').style.background = "var(--blue-trust)";
+        document.getElementById('btn-conectar-video').style.display = "block";
+
+        iniciarChatVial(vialActualId);
+
+        // Iniciamos el radar GPS
+        if (trackInterval) clearInterval(trackInterval);
         trackInterval = setInterval(async () => {
             const { data: unidad } = await dbApp.from('unidades_grua').select('*').eq('gruero_id', grueroId).maybeSingle();
             if (unidad && userLocation) {
@@ -892,17 +910,50 @@
                 const dl = (unidad.lng_actual-userLocation.lng) * Math.PI/180;
                 const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
                 const dist = Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))));
-                document.getElementById('vial-distancia-txt').innerText = dist + ' m';
+                document.getElementById('distancia-txt').innerText = `📍 Distancia de la grúa: ${dist} m`;
             }
         }, 3000);
     }
 
-    async function enviarMensajeVial(asistenciaId) {
+    // EL USUARIO TOCA ESTE BOTÓN DENTRO DE LA SALA PARA ABRIR LA CÁMARA
+    async function iniciarVideoGrua() {
+        document.getElementById('vial-map-placeholder').style.display = 'none';
+        document.getElementById('vial-video-container').style.display = 'block';
+
+        const frame = window.DailyIframe.createFrame(document.getElementById('vial-video-container'), {
+            showLeaveButton: false, iframeStyle: { width: '100%', height: '100%', border: '0' }
+        });
+        window._dailyGruaFrame = frame;
+        await frame.join({ url: vialActualUrl, token: vialActualToken });
+
+        const btnVideo = document.getElementById('btn-conectar-video');
+        btnVideo.style.background = "var(--green-active)";
+        btnVideo.innerText = "📹 ACTIVO";
+    }
+
+    // EL MOTOR DEL CHAT EN TIEMPO REAL
+    function iniciarChatVial(asistenciaId) {
+        if (chatChannelVial) dbApp.removeChannel(chatChannelVial);
+        chatChannelVial = dbApp.channel(`chat-vial-${asistenciaId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_viales', filter: `asistencia_id=eq.${asistenciaId}` },
+        (payload) => {
+            const isMe = payload.new.emisor_id === currentUser.id;
+            const chatBox = document.getElementById('vial-chat-box');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isMe ? 'msg user' : 'msg bot';
+            msgDiv.innerText = payload.new.mensaje;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }).subscribe();
+    }
+
+    async function enviarMensajeVial() {
         const input = document.getElementById('input-chat-vial');
         const msg = input.value.trim();
-        if (!msg) return;
-        
-        await dbApp.from('mensajes_viales').insert([{ asistencia_id: asistenciaId, emisor_id: currentUser.id, mensaje: msg }]);
+        if (!msg || !vialActualId) return;
+
+        // Se envía el mensaje, el Realtime lo devolverá y se pintará arriba
+        await dbApp.from('mensajes_viales').insert([{ asistencia_id: vialActualId, emisor_id: currentUser.id, mensaje: msg }]);
         input.value = '';
     }
 
