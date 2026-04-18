@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AbogadoYA — Panel de Abogado</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
   <style>
     :root {
       --navy: #0A1628; --navy-light: #121F36; --blue-trust: #2563EB;
@@ -68,6 +69,15 @@
 </div>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 </head>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado.', reg.scope))
+        .catch(err => console.error('Error al registrar PWA:', err));
+    });
+  }
+</script>
 <body>
 
   <header>

@@ -1,8 +1,8 @@
 {
-  "name": "AbogadoYA — Defensa Legal",
-  "short_name": "AbogadoYA",
-  "description": "Protección legal inmediata y grabada en la nube.",
-  "start_url": "/app.html",
+  "name": "secureflow — Defensa Legal y Vial",
+  "short_name": "secureflow",
+  "description": "Protección legal inmediata y asistencia en carretera.",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0A1628",
   "theme_color": "#0A1628",

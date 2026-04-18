@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AbogadoYA — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
   <style>
     :root {
       --navy: #0A1628; --navy-light: #121F36; --blue-trust: #2563EB;
@@ -83,6 +84,15 @@
     .plan-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--navy); font-size: 0.7rem; font-weight: 900; padding: 4px 12px; border-radius: 20px; }
   </style>
 </head>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado.', reg.scope))
+        .catch(err => console.error('Error al registrar PWA:', err));
+    });
+  }
+</script>
 <body>
 
   <div id="loader">🛡️ Protegiendo tus derechos...</div>

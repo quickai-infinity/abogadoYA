@@ -1,9 +1,12 @@
-const CACHE_NAME = 'abogadoya-v1';
+const CACHE_NAME = 'secureflow-v2';
 const ASSETS = [
-  '/app.html',
-  '/index.html',
-  '/agente-ia.js',
-  '/manifest.json'
+  './',
+  './index.html',
+  './app.html',
+  './panel-gruero.html',
+  './panel-abogado.html',
+  './agente-ia.js',
+  './manifest.json'
 ];
 
 // Instalación: Descarga los archivos al teléfono
