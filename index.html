@@ -710,9 +710,6 @@
 
     .btn-entrar-header:active, .nav-cta-header:active { transform: scale(0.94); }
   </style>
-  <button id="btn-instalar-app" style="display: none; background: #2563EB; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(37,99,235,0.4); margin: 10px 0;">
-    📲 Instalar App
-</button>
 </head>
 <script>
   let eventoInstalacion;
@@ -753,14 +750,18 @@
 </script>
 <body>
 <nav>
-    <a href="#" class="logo">
-      <div class="logo-text">Secure<span style="color: var(--purple-care);">Flow</span></div>
-    </a>
-    <div style="display: flex; gap: 8px; align-items: center;">
-      <button onclick="showLogin()" class="btn-entrar-header">Entrar</button>
-      <a href="#registro" class="nav-cta-header" style="background: linear-gradient(135deg, var(--blue-trust), var(--purple-care)); padding: 0.5rem 1.2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);">Registrarme</a>
-    </div>
-  </nav>
+  <a href="#" class="logo">
+    <div class="logo-icon">⚖️</div>
+    <div class="logo-text">Secure<span>Flow</span></div>
+  </a>
+  
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <button id="btn-instalar-app" style="display: none; background: #16A34A; color: white; padding: 0.4rem 0.9rem; border-radius: 8px; font-weight: 600; font-size: 0.75rem; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);">
+        📲 Instalar App
+    </button>
+    <button class="btn-entrar-header" onclick="abrirLogin()">Entrar</button>
+  </div>
+</nav>
 
   <!-- SECCIÓN HERO ACTUALIZADA (SIN BOTÓN) -->
   <section class="hero">
