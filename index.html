@@ -711,47 +711,10 @@
     .btn-entrar-header:active, .nav-cta-header:active { transform: scale(0.94); }
   </style>
 </head>
-<script>
-  let eventoInstalacion;
-  const botonInstalar = document.getElementById('btn-instalar-app');
 
-  // 1. Escuchar si el teléfono permite instalar la app
-  window.addEventListener('beforeinstallprompt', (e) => {
-    // Evita que el navegador lance su propio mini-aviso automático
-    e.preventDefault();
-    // Guarda el evento para dispararlo cuando el usuario toque el botón
-    eventoInstalacion = e;
-    // Muestra nuestro botón personalizado
-    botonInstalar.style.display = 'inline-block';
-  });
-
-  // 2. Qué hacer cuando tocan el botón
-  botonInstalar.addEventListener('click', async () => {
-    if (!eventoInstalacion) return;
-    
-    // Dispara el aviso nativo del sistema operativo (Android/PC)
-    eventoInstalacion.prompt();
-    
-    // Espera a que el usuario decida (Aceptar o Cancelar)
-    const { outcome } = await eventoInstalacion.userChoice;
-    if (outcome === 'accepted') {
-      console.log('App instalada con éxito');
-      botonInstalar.style.display = 'none'; // Ocultamos el botón si ya instaló
-    }
-    
-    // Limpiamos el evento
-    eventoInstalacion = null;
-  });
-
-  // 3. Ocultar el botón si detecta que ya la tiene instalada
-  window.addEventListener('appinstalled', () => {
-    botonInstalar.style.display = 'none';
-  });
-</script>
 <body>
 <nav>
   <a href="#" class="logo">
-    <div class="logo-icon">⚖️</div>
     <div class="logo-text">Secure<span>Flow</span></div>
   </a>
   
@@ -759,7 +722,8 @@
     <button id="btn-instalar-app" style="display: none; background: #16A34A; color: white; padding: 0.4rem 0.9rem; border-radius: 8px; font-weight: 600; font-size: 0.75rem; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);">
         📲 Instalar App
     </button>
-    <button class="btn-entrar-header" onclick="abrirLogin()">Entrar</button>
+    <button class="nav-cta-header" onclick="document.getElementById('registro').scrollIntoView({behavior: 'smooth'})">Registrarse</button>
+    <button class="btn-entrar-header" onclick="showLogin()">Entrar</button>
   </div>
 </nav>
 
@@ -1367,5 +1331,33 @@
     setInterval(animateHeader, 4000);
     animateHeader(); // Iniciar inmediatamente
   </script>
+  <script>
+  let eventoInstalacion;
+  const botonInstalar = document.getElementById('btn-instalar-app');
+
+  // 1. Escuchar si el teléfono permite instalar la app
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    eventoInstalacion = e;
+    botonInstalar.style.display = 'inline-block';
+  });
+
+  // 2. Qué hacer cuando tocan el botón
+  botonInstalar.addEventListener('click', async () => {
+    if (!eventoInstalacion) return;
+    eventoInstalacion.prompt();
+    const { outcome } = await eventoInstalacion.userChoice;
+    if (outcome === 'accepted') {
+      console.log('App instalada con éxito');
+      botonInstalar.style.display = 'none';
+    }
+    eventoInstalacion = null;
+  });
+
+  // 3. Ocultar el botón si detecta que ya la tiene instalada
+  window.addEventListener('appinstalled', () => {
+    botonInstalar.style.display = 'none';
+  });
+</script>
 </body>
 </html>
