@@ -105,6 +105,7 @@
         let miGrueroId = null;
         let isOnline = false;
         let gpsWatchId = null;
+        let deudaExcedida = false;
         
         let currentAsistenciaId = null;
         let salaGruaUrl = null;
@@ -127,14 +128,35 @@
             if (perfil) {
                 miGrueroId = perfil.id;
                 document.getElementById('txt-bienvenida').innerText = `Hola, ${perfil.nombre_completo.split(' ')[0]}`;
-                document.getElementById('txt-status').innerText = `Placa: ${perfil.placa_vehiculo} - Fuera de servicio`;
+                
+                // LÓGICA DE BLOQUEO POR DEUDA
+                const deudaActual = Number(perfil.deuda_comisiones) || 0;
+                const btn = document.getElementById('btn-toggle');
+                
+                if (deudaActual >= 20) {
+                    deudaExcedida = true;
+                    document.getElementById('txt-status').innerText = `Placa: ${perfil.placa_vehiculo} | 🔴 DEUDA PENDIENTE: $${deudaActual.toFixed(2)}`;
+                    document.getElementById('txt-status').style.color = "#EF4444"; // Color rojo de alerta
+                    btn.innerText = "BLOQUEADO (PAGAR COMISIONES)";
+                    btn.style.background = "#EF4444";
+                    btn.style.color = "white";
+                } else {
+                    deudaExcedida = false;
+                    document.getElementById('txt-status').innerText = `Placa: ${perfil.placa_vehiculo} - Fuera de servicio | Deuda actual: $${deudaActual.toFixed(2)}`;
+                }
             } else {
                 alert("Error crítico: No se encontró tu perfil de gruero en la base de datos.");
             }
         }
 
-        async function toggleServicio() {
+     async function toggleServicio() {
             if (!miGrueroId) { showToast("Cargando perfil..."); return; }
+
+           // BARRERA DE SEGURIDAD (Si debe dinero, no trabaja)
+            if (deudaExcedida) {
+                document.getElementById('modal-pagos').style.display = 'flex';
+                return;
+            }
 
             isOnline = !isOnline;
             const btn = document.getElementById('btn-toggle');
@@ -148,6 +170,7 @@
                 radarIcon.innerText = "🛰️";
                 radarIcon.style.animation = "pulse 2s infinite";
                 statusTxt.innerText = "Guardia Activa - Esperando servicios...";
+                statusTxt.style.color = "var(--gray-400)"; // Restaura el color normal
 
                 gpsWatchId = navigator.geolocation.watchPosition(
                     async (pos) => {
@@ -166,7 +189,10 @@
                 btn.className = "btn-status offline";
                 radarIcon.innerText = "💤";
                 radarIcon.style.animation = "none";
+                
+                // Lee la deuda de nuevo de la base de datos visual si es necesario, o la deja estática
                 statusTxt.innerText = "Fuera de Servicio";
+                
                 if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
                 await window.dbApp.from('unidades_grua').update({ estado: 'desconectado' }).eq('gruero_id', miGrueroId);
                 showToast("Guardia Finalizada.");
@@ -469,5 +495,32 @@
         iniciarRadarGruas();
     </script>
     <script src="agente-ia.js"></script>
+    <div id="modal-pagos" style="display:none; position:fixed; inset:0; background:rgba(10,22,40,0.95); z-index:9999; align-items:center; justify-content:center; padding:1.5rem;">
+        <div style="background:var(--navy-light); width:100%; max-width:400px; padding:2rem; border-radius:20px; border:1px solid #EF4444; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">🔴</div>
+            <h2 style="color:#EF4444; font-weight:900; margin-bottom:10px;">CUENTA BLOQUEADA</h2>
+            <p style="color:var(--gray-400); font-size:0.9rem; margin-bottom:20px;">Has alcanzado el límite de deuda por comisiones ($20.00). Liquida tu saldo para seguir operando.</p>
+            
+            <h3 style="color:white; font-size:1rem; margin-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:5px;">Opciones de Pago</h3>
+            
+            <a href="https://buy.stripe.com/9B600i8Yv8nO5MF8117Vm01" target="_blank" style="display:block; background:#635BFF; color:white; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-bottom:10px;">
+                💳 Pagar $20 con Tarjeta (Stripe)
+            </a>
+            
+            <div style="background:rgba(250,204,21,0.1); border:1px dashed var(--yellow-grua); padding:15px; border-radius:10px; margin-bottom:15px;">
+                <p style="color:var(--yellow-grua); font-weight:bold; font-size:0.9rem; margin-bottom:5px;">🪙 Pagar con Binance (USDT)</p>
+                <p style="color:white; font-size:0.8rem; margin-bottom:5px;">Envía 20 USDT a este Pay ID:312467889</p>
+                <strong style="font-size:1.2rem; letter-spacing:2px;">123456789</strong>
+            </div>
+
+            <p style="font-size:0.75rem; color:var(--gray-400); margin-bottom:15px;">Tras realizar el pago, envía el comprobante a soporte.</p>
+            
+            <a href="https://wa.me/524429053076" target="_blank" style="display:block; background:#22C55E; color:#0A1628; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
+                📲 Enviar Comprobante por WhatsApp
+            </a>
+
+            <button onclick="document.getElementById('modal-pagos').style.display='none'" style="background:transparent; color:var(--gray-400); border:none; text-decoration:underline; cursor:pointer;">Cerrar ventana</button>
+        </div>
+    </div>
 </body>
 </html>
