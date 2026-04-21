@@ -378,45 +378,78 @@
         }
 
         // --- PEGA LA FUNCIÓN AQUÍ ---
-        async function finalizarServicioGrua() {
+     async function finalizarServicioGrua() {
+            // 1. Solicitar el monto final cobrado al cliente
+            const costoCobrado = prompt("Servicio finalizado. Ingresa el monto total cobrado al cliente en dólares ($):");
+            
+            // Validar que el gruero ingrese un número válido
+            if (!costoCobrado || isNaN(costoCobrado) || Number(costoCobrado) <= 0) {
+                alert("Operación cancelada: Debes ingresar un monto numérico válido para calcular la comisión y finalizar el servicio.");
+                return; 
+            }
+
+            // 2. Cálculo matemático (10% de comisión)
+            const costoReal = parseFloat(costoCobrado);
+            const comision = costoReal * 0.10; // 10% retenido para la plataforma
+
             try {
-                // 1. Cerramos el video de forma segura sin que arroje errores
+                // 3. Cerramos el video y chat de forma segura
                 if (gruaCallFrame) { 
-                    await gruaCallFrame.leave().catch(() => {}); // Ignora el error si ya estaba apagado
+                    await gruaCallFrame.leave().catch(() => {}); 
                     gruaCallFrame.destroy(); 
                     gruaCallFrame = null; 
                     if (typeof isVideoActiveGruero !== 'undefined') isVideoActiveGruero = false;
                 }
                 
-                // 2. Apagamos el canal de chat
                 if (chatChannelGruero) {
                     window.dbApp.removeChannel(chatChannelGruero);
                     chatChannelGruero = null;
                 }
                 
-                // 3. Destruimos la ventana negra
                 const overlay = document.getElementById('video-overlay-gruero');
                 if (overlay) overlay.remove();
 
-                // 4. Mostramos el panel original
+                // 4. Leer la deuda actual del gruero desde la base de datos
+                const { data: perfilGruero } = await window.dbApp
+                    .from('grueros')
+                    .select('deuda_comisiones')
+                    .eq('id', miGrueroId)
+                    .single();
+                
+                const deudaPrevia = perfilGruero ? Number(perfilGruero.deuda_comisiones) : 0;
+                const nuevaDeuda = deudaPrevia + comision;
+
+                // 5. Actualizar la base de datos (Asistencia y Deuda)
+                if (currentAsistenciaId) {
+                    // Actualizar el costo y comisión en el historial del viaje
+                    await window.dbApp.from('asistencias_viales').update({ 
+                        estado: 'finalizada',
+                        costo_total: costoReal,
+                        comision_generada: comision
+                    }).eq('id', currentAsistenciaId);
+
+                    // Sumar la comisión a la deuda acumulada del gruero
+                    await window.dbApp.from('grueros').update({ 
+                        deuda_comisiones: nuevaDeuda 
+                    }).eq('id', miGrueroId);
+                }
+                
+                // 6. Mostramos el panel original
                 document.getElementById('radar-visual').style.display = 'flex';
                 document.getElementById('btn-toggle').style.display = 'block';
                 
-                // 5. Avisamos a base de datos
-                if (currentAsistenciaId) {
-                    await window.dbApp.from('asistencias_viales').update({ estado: 'finalizada' }).eq('id', currentAsistenciaId);
-                }
+                showToast(`Servicio Finalizado. Cobrado: $${costoReal} | Deuda sumada: $${comision.toFixed(2)}`);
                 
-                showToast("Servicio Finalizado. ¡Buen trabajo!");
-                
-                // 6. Limpiamos variables
+                // 7. Limpiamos variables
                 currentAsistenciaId = null;
                 salaGruaUrl = null;
                 if (typeof vialActualUrl !== 'undefined') vialActualUrl = null;
 
             } catch (err) {
                 console.error("Error al finalizar:", err);
-                // SALVAVIDAS: Si algo falla por falta de internet, forzamos el cerrado visual
+                alert("Error de conexión al guardar los datos financieros.");
+                
+                // SALVAVIDAS VISUAL
                 const overlay = document.getElementById('video-overlay-gruero');
                 if (overlay) overlay.remove();
                 document.getElementById('radar-visual').style.display = 'flex';
