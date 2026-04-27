@@ -200,46 +200,60 @@
         }
 
         function iniciarRadarGruas() {
-          window.dbApp.channel('alertas_viales')
+window.dbApp.channel('alertas_viales')
 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'asistencias_viales', filter: 'estado=eq.pendiente' }, 
 (payload) => {
     if (isOnline) {
-        const costoTotal = parseFloat(payload.new.costo_total);
-        const gananciaGruero = costoTotal * 0.90; // Tú te quedas el 10%
+        currentAsistenciaId = payload.new.id;
+        
+        // Calculamos la ganancia neta (Ej: 90% para el gruero, 10% deuda app)
+        const costoTotal = parseFloat(payload.new.costo_total) || 0;
+        const ganancia = costoTotal * 0.90; 
 
         document.getElementById('alerta-servicio').style.display = 'block';
-        // Inyectamos el precio en la alerta
         document.getElementById('distancia-cliente').innerHTML = `
-            <div style="font-size:1.5rem; font-weight:900; color:var(--navy);">
-                GANANCIA: $${gananciaGruero.toFixed(2)}
+            <div style="background:white; padding:10px; border-radius:8px; margin-bottom:10px;">
+                <p style="color:#0A1628; font-size:0.7rem; font-weight:bold;">GANANCIA ESTIMADA</p>
+                <h2 style="color:#16A34A; font-size:1.8rem;">$${ganancia.toFixed(2)}</h2>
             </div>
-            <p>Servicio solicitado por ciudadano</p>
+            <p>Servicio de asistencia vial solicitado.</p>
         `;
     }
 }).subscribe();
         }
+async function aceptarServicio() {
+    if (!currentAsistenciaId || !miGrueroId) {
+        alert("Faltan datos para aceptar el servicio."); return;
+    }
 
-        async function aceptarServicio() {
-            if (!currentAsistenciaId) return;
-            const btn = document.querySelector('#alerta-servicio button');
-            btn.innerText = "⏳ ABRIENDO SALA..."; btn.disabled = true;
+    const btn = document.querySelector('#alerta-servicio button');
+    btn.innerText = "⏳ PROCESANDO...";
+    btn.disabled = true;
 
-            // FIX DB: Usamos .select() para obligar a Supabase a decirnos si el RLS bloqueó el cambio
-            const { data, error } = await window.dbApp.from('asistencias_viales')
-                .update({ estado: 'aceptada', gruero_id: miGrueroId })
-                .eq('id', currentAsistenciaId)
-                .select();
+    try {
+        const { data, error } = await window.dbApp.from('asistencias_viales')
+            .update({ 
+                estado: 'aceptada', 
+                gruero_id: miGrueroId 
+            })
+            .eq('id', currentAsistenciaId)
+            .select();
 
-            if (error) { 
-                alert("Error de Red: " + error.message); 
-                btn.innerText = "ACEPTAR SERVICIO"; btn.disabled = false; return; 
-            }
-            
-            // Si Supabase devuelve 0 datos, significa que los permisos de seguridad (RLS) bloquearon al gruero.
-            if (!data || data.length === 0) {
-                alert("🚨 BLOQUEO DE BASE DE DATOS: El usuario gruero no tiene permiso para actualizar la tabla. Ve a Supabase SQL Editor y ejecuta: ALTER TABLE asistencias_viales DISABLE ROW LEVEL SECURITY;");
-                btn.innerText = "ACEPTAR SERVICIO"; btn.disabled = false; return;
-            }
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            document.getElementById('alerta-servicio').style.display = 'none';
+            document.getElementById('radar-visual').style.display = 'none';
+            abrirSalaInteractivaGruero(); 
+        } else {
+            alert("Este servicio ya fue tomado por otra unidad.");
+            location.reload();
+        }
+    } catch (err) {
+        alert("Error de conexión: " + err.message);
+        btn.innerText = "ACEPTAR SERVICIO";
+        btn.disabled = false;
+    }
 
             document.getElementById('alerta-servicio').style.display = 'none';
             document.getElementById('radar-visual').style.display = 'none';

@@ -803,48 +803,42 @@ async function solicitarGrua() {
     if (!userLocation) { mostrarNotificacion("⚠️ GPS necesario.", "error"); return; }
 
     try {
-        // 1. Buscamos al gruero más cercano para obtener SU tarifa
+        // 1. Buscamos al gruero más cercano para obtener su tarifa
         const { data: unidades } = await dbApp.from('unidades_grua')
             .select('*, grueros(tarifa_base, precio_km, plus_nocturno)')
             .eq('estado', 'disponible')
             .limit(1);
 
         if (!unidades || unidades.length === 0) {
-            alert("No hay grúas disponibles en tu zona ahora mismo.");
-            return;
+            alert("No hay grúas disponibles en tu zona."); return;
         }
 
         const unidad = unidades[0];
         const t = unidad.grueros;
 
-        // 2. Cálculo de distancia
-        const R = 6371; // Radio Tierra
+        // 2. Cálculo de distancia (Fórmula Haversine)
+        const R = 6371; 
         const dLat = (unidad.lat_actual - userLocation.lat) * Math.PI / 180;
         const dLon = (unidad.lng_actual - userLocation.lng) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(unidad.lat_actual * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
         const distancia = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 
-        // 3. Cálculo de Tarifa
+        // 3. Cálculo de Tarifa con Mínimo (Modelo de Deuda)
         let total = parseFloat(t.tarifa_base) + (distancia * parseFloat(t.precio_km));
-        const hora = new Date().getHours();
-        if (hora >= 22 || hora <= 6) total += parseFloat(t.plus_nocturno);
+        if (total < parseFloat(t.tarifa_base)) total = parseFloat(t.tarifa_base);
 
-        // 4. EL USUARIO DECIDE
-        if (confirm(`🚜 Grúa encontrada a ${distancia.toFixed(1)} km.\n💰 Presupuesto: $${total.toFixed(2)}\n\n¿Aceptar y solicitar ahora?`)) {
-            
-            // --- PASO CRÍTICO: Llamamos a la Edge Function para crear la sala ---
-            const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
-            if (salaError) throw salaError;
+        // 4. El usuario acepta el presupuesto antes de disparar la alerta
+        if (confirm(`🚜 Grúa a ${distancia.toFixed(1)} km.\n💰 Costo del servicio: $${total.toFixed(2)}\n\n¿Aceptar y solicitar?`)) {
+            const { data: salaData } = await dbApp.functions.invoke('crear-sala');
+            abrirVentanaVialInmediata(); 
 
-            abrirVentanaVialInmediata(); // Abre la interfaz del mapa
-
-            // 5. Creamos el registro en la base de datos con el precio pactado
+            // GUARDAMOS EL COSTO_TOTAL PARA QUE EL GRUERO LO VEA
             const { data: reg, error: insErr } = await dbApp.from('asistencias_viales').insert([{
                 ciudadano_id: currentUser.id,
                 ubicacion_origen_lat: userLocation.lat,
                 ubicacion_origen_lng: userLocation.lng,
-                sala_webrtc_url: salaData.url, // Ahora sí tenemos salaData
-                costo_total: total.toFixed(2),
+                costo_total: total.toFixed(2), 
+                sala_webrtc_url: salaData.url,
                 estado: 'pendiente'
             }]).select('id').single();
 
