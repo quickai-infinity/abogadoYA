@@ -61,9 +61,14 @@
     <div style="background:var(--navy-light); border:1px solid var(--gold); padding:2rem; border-radius:16px; width:100%; max-width:350px; position:relative;">
         <button onclick="cerrarAjustes()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">✕</button>
         <h3 style="color:var(--gold); margin-bottom:1.5rem; text-align:center;">Configuración</h3>
-        
-        <label style="font-size:0.7rem; color:var(--gray-400); display:block; margin-bottom:8px;">TARIFA POR SESIÓN ($)</label>
-        <input type="number" id="input-tarifa" value="15.00" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:10px; font-size:1.2rem; text-align:center; margin-bottom:1.5rem;">
+        <label style="font-size:0.7rem; color:var(--gray-400); display:block; margin-bottom:4px;">TARIFA 15 MIN ($)</label>
+<input type="number" id="tarifa-15" style="width:100%; background:rgba(0,0,0,0.3); color:white; padding:10px; border-radius:8px; margin-bottom:10px;">
+
+<label style="font-size:0.7rem; color:var(--gray-400); display:block; margin-bottom:4px;">TARIFA 30 MIN ($)</label>
+<input type="number" id="tarifa-30" style="width:100%; background:rgba(0,0,0,0.3); color:white; padding:10px; border-radius:8px; margin-bottom:10px;">
+
+<label style="font-size:0.7rem; color:var(--gray-400); display:block; margin-bottom:4px;">TARIFA 1 HORA ($)</label>
+<input type="number" id="tarifa-60" style="width:100%; background:rgba(0,0,0,0.3); color:white; padding:10px; border-radius:8px; margin-bottom:15px;">
         
         <button onclick="guardarTarifa()" style="width:100%; background:var(--gold); color:var(--navy); border:none; padding:12px; border-radius:10px; font-weight:800; cursor:pointer;">GUARDAR CAMBIOS</button>
     </div>

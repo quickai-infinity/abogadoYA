@@ -798,46 +798,76 @@
     let vialActualId = null;
     let vialActualUrl = null;
     let vialActualToken = null;
+    
+async function solicitarGrua() {
+    if (!userLocation) { mostrarNotificacion("⚠️ GPS necesario.", "error"); return; }
 
-    async function solicitarGrua() {
-        if (!userLocation) { mostrarNotificacion("⚠️ GPS necesario.", "error"); return; }
-        if (!confirm("¿Solicitar asistencia vial ahora?")) return;
+    try {
+        // 1. Buscamos al gruero más cercano para obtener SU tarifa
+        const { data: unidades } = await dbApp.from('unidades_grua')
+            .select('*, grueros(tarifa_base, precio_km, plus_nocturno)')
+            .eq('estado', 'disponible')
+            .limit(1);
 
-        // 1. ABRIR VENTANA INMEDIATAMENTE AL HACER CLIC (Evita todos los bloqueos del móvil)
-        abrirVentanaVialInmediata();
+        if (!unidades || unidades.length === 0) {
+            alert("No hay grúas disponibles en tu zona ahora mismo.");
+            return;
+        }
 
-        try {
-            const { data: { user } } = await dbApp.auth.getUser();
-            const { data: salaData } = await dbApp.functions.invoke('crear-sala');
+        const unidad = unidades[0];
+        const t = unidad.grueros;
 
+        // 2. Cálculo de distancia
+        const R = 6371; // Radio Tierra
+        const dLat = (unidad.lat_actual - userLocation.lat) * Math.PI / 180;
+        const dLon = (unidad.lng_actual - userLocation.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(unidad.lat_actual * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const distancia = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+
+        // 3. Cálculo de Tarifa
+        let total = parseFloat(t.tarifa_base) + (distancia * parseFloat(t.precio_km));
+        const hora = new Date().getHours();
+        if (hora >= 22 || hora <= 6) total += parseFloat(t.plus_nocturno);
+
+        // 4. EL USUARIO DECIDE
+        if (confirm(`🚜 Grúa encontrada a ${distancia.toFixed(1)} km.\n💰 Presupuesto: $${total.toFixed(2)}\n\n¿Aceptar y solicitar ahora?`)) {
+            
+            // --- PASO CRÍTICO: Llamamos a la Edge Function para crear la sala ---
+            const { data: salaData, error: salaError } = await dbApp.functions.invoke('crear-sala');
+            if (salaError) throw salaError;
+
+            abrirVentanaVialInmediata(); // Abre la interfaz del mapa
+
+            // 5. Creamos el registro en la base de datos con el precio pactado
             const { data: reg, error: insErr } = await dbApp.from('asistencias_viales').insert([{
-                ciudadano_id: user.id,
+                ciudadano_id: currentUser.id,
                 ubicacion_origen_lat: userLocation.lat,
                 ubicacion_origen_lng: userLocation.lng,
-                sala_webrtc_url: salaData.url,
+                sala_webrtc_url: salaData.url, // Ahora sí tenemos salaData
+                costo_total: total.toFixed(2),
                 estado: 'pendiente'
             }]).select('id').single();
 
-            if(insErr) throw insErr;
+            if (insErr) throw insErr;
 
             vialActualId = reg.id;
             vialActualUrl = salaData.url;
             vialActualToken = salaData.token;
 
-            // 2. Escuchar cuando el gruero acepta el servicio
+            // 6. Escuchar cuando el gruero acepta el servicio
             const canalVial = dbApp.channel(`vial-${reg.id}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` },
-            (payload) => {
-                if (payload.new.estado === 'aceptada') {
-                    activarSalaInteractiva(payload.new.gruero_id);
-                    dbApp.removeChannel(canalVial);
-                }
-            }).subscribe();
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'asistencias_viales', filter: `id=eq.${reg.id}` },
+                (payload) => {
+                    if (payload.new.estado === 'aceptada') {
+                        activarSalaInteractiva(payload.new.gruero_id);
+                        dbApp.removeChannel(canalVial);
+                    }
+                }).subscribe();
 
-            // 3. El Salvavidas Anti-Fallas
+            // 7. El Salvavidas Anti-Fallas
             const verificador = setInterval(async () => {
                 const statusEl = document.getElementById('vial-status-txt');
-                if (!statusEl) { clearInterval(verificador); return; } // Si el usuario canceló
+                if (!statusEl) { clearInterval(verificador); return; }
                 if (statusEl.innerText.includes("CAMINO")) { clearInterval(verificador); return; }
 
                 const { data: checkData } = await dbApp.from('asistencias_viales').select('estado, gruero_id').eq('id', reg.id).single();
@@ -847,13 +877,21 @@
                     dbApp.removeChannel(canalVial);
                 }
             }, 3000);
+        } // <--- Aquí faltaba cerrar el IF del Confirm
 
-        } catch (err) {
-            document.getElementById('vial-status-txt').innerText = "⚠️ ERROR DE RED";
-            document.getElementById('vial-status-txt').style.color = "#EF4444";
-            document.getElementById('msg-estado-vial').innerText = "Hubo un fallo de conexión. Cierra la ventana e intenta de nuevo.";
+    } catch (err) {
+        console.error(err);
+        const statusTxt = document.getElementById('vial-status-txt');
+        if (statusTxt) {
+            statusTxt.innerText = "⚠️ ERROR DE RED";
+            statusTxt.style.color = "#EF4444";
+        }
+        const msgEstado = document.getElementById('msg-estado-vial');
+        if (msgEstado) {
+            msgEstado.innerText = "Hubo un fallo de conexión. Cierra la ventana e intenta de nuevo.";
         }
     }
+}
 
     // MOTOR DE MAPAS EN VIVO Y RUTAS
     let mapVial = null;
