@@ -231,6 +231,7 @@ async function aceptarServicio() {
     btn.disabled = true;
 
     try {
+        // 1. Intentamos reclamar el servicio en la base de datos
         const { data, error } = await window.dbApp.from('asistencias_viales')
             .update({ 
                 estado: 'aceptada', 
@@ -242,10 +243,14 @@ async function aceptarServicio() {
         if (error) throw error;
 
         if (data && data.length > 0) {
+            // 2. ÉXITO: Ocultamos la alerta y abrimos el mapa
             document.getElementById('alerta-servicio').style.display = 'none';
             document.getElementById('radar-visual').style.display = 'none';
+            document.getElementById('btn-toggle').style.display = 'none'; // Escondemos el botón de guardia
+            
             abrirSalaInteractivaGruero(); 
         } else {
+            // 3. Si no hay data, otro gruero fue más rápido
             alert("Este servicio ya fue tomado por otra unidad.");
             location.reload();
         }
@@ -423,85 +428,77 @@ async function aceptarServicio() {
 
         // --- PEGA LA FUNCIÓN AQUÍ ---
      async function finalizarServicioGrua() {
-            // 1. Solicitar el monto final cobrado al cliente
-            const costoCobrado = prompt("Servicio finalizado. Ingresa el monto total cobrado al cliente en dólares ($):");
-            
-            // Validar que el gruero ingrese un número válido
-            if (!costoCobrado || isNaN(costoCobrado) || Number(costoCobrado) <= 0) {
-                alert("Operación cancelada: Debes ingresar un monto numérico válido para calcular la comisión y finalizar el servicio.");
-                return; 
-            }
+    if (!currentAsistenciaId) return;
+    
+    try {
+        // 1. OBTENER EL PRECIO QUE EL USUARIO YA ACEPTÓ
+        const { data: asistencia, error: errFetch } = await window.dbApp
+            .from('asistencias_viales')
+            .select('costo_total')
+            .eq('id', currentAsistenciaId)
+            .single();
+        
+        if (errFetch) throw errFetch;
 
-            // 2. Cálculo matemático (10% de comisión)
-            const costoReal = parseFloat(costoCobrado);
-            const comision = costoReal * 0.10; // 10% retenido para la plataforma
+        const costoReal = parseFloat(asistencia.costo_total) || 0; 
+        const comisionApp = costoReal * 0.10; // 10% de comisión automática
 
-            try {
-                // 3. Cerramos el video y chat de forma segura
-                if (gruaCallFrame) { 
-                    await gruaCallFrame.leave().catch(() => {}); 
-                    gruaCallFrame.destroy(); 
-                    gruaCallFrame = null; 
-                    if (typeof isVideoActiveGruero !== 'undefined') isVideoActiveGruero = false;
-                }
-                
-                if (chatChannelGruero) {
-                    window.dbApp.removeChannel(chatChannelGruero);
-                    chatChannelGruero = null;
-                }
-                
-                const overlay = document.getElementById('video-overlay-gruero');
-                if (overlay) overlay.remove();
-
-                // 4. Leer la deuda actual del gruero desde la base de datos
-                const { data: perfilGruero } = await window.dbApp
-                    .from('grueros')
-                    .select('deuda_comisiones')
-                    .eq('id', miGrueroId)
-                    .single();
-                
-                const deudaPrevia = perfilGruero ? Number(perfilGruero.deuda_comisiones) : 0;
-                const nuevaDeuda = deudaPrevia + comision;
-
-                // 5. Actualizar la base de datos (Asistencia y Deuda)
-                if (currentAsistenciaId) {
-                    // Actualizar el costo y comisión en el historial del viaje
-                    await window.dbApp.from('asistencias_viales').update({ 
-                        estado: 'finalizada',
-                        costo_total: costoReal,
-                        comision_generada: comision
-                    }).eq('id', currentAsistenciaId);
-
-                    // Sumar la comisión a la deuda acumulada del gruero
-                    await window.dbApp.from('grueros').update({ 
-                        deuda_comisiones: nuevaDeuda 
-                    }).eq('id', miGrueroId);
-                }
-                
-                // 6. Mostramos el panel original
-                document.getElementById('radar-visual').style.display = 'flex';
-                document.getElementById('btn-toggle').style.display = 'block';
-                
-                showToast(`Servicio Finalizado. Cobrado: $${costoReal} | Deuda sumada: $${comision.toFixed(2)}`);
-                
-                // 7. Limpiamos variables
-                currentAsistenciaId = null;
-                salaGruaUrl = null;
-                if (typeof vialActualUrl !== 'undefined') vialActualUrl = null;
-
-            } catch (err) {
-                console.error("Error al finalizar:", err);
-                alert("Error de conexión al guardar los datos financieros.");
-                
-                // SALVAVIDAS VISUAL
-                const overlay = document.getElementById('video-overlay-gruero');
-                if (overlay) overlay.remove();
-                document.getElementById('radar-visual').style.display = 'flex';
-                document.getElementById('btn-toggle').style.display = 'block';
-            }
+        // 2. CERRAR VIDEO Y CHAT
+        if (gruaCallFrame) { 
+            await gruaCallFrame.leave().catch(() => {}); 
+            gruaCallFrame.destroy(); 
+            gruaCallFrame = null; 
+            if (typeof isVideoActiveGruero !== 'undefined') isVideoActiveGruero = false;
         }
-        // ------------------------------
+        if (chatChannelGruero) {
+            window.dbApp.removeChannel(chatChannelGruero);
+            chatChannelGruero = null;
+        }
+        
+        const overlay = document.getElementById('video-overlay-gruero');
+        if (overlay) overlay.remove();
 
+        // 3. ACTUALIZAR DEUDA DEL GRUERO
+        const { data: perfilGruero } = await window.dbApp
+            .from('grueros')
+            .select('deuda_comisiones')
+            .eq('id', miGrueroId)
+            .single();
+        
+        const deudaPrevia = perfilGruero ? Number(perfilGruero.deuda_comisiones) : 0;
+        const nuevaDeuda = deudaPrevia + comisionApp;
+
+        // 4. GUARDAR EN BASE DE DATOS
+        await window.dbApp.from('asistencias_viales').update({ 
+            estado: 'finalizada',
+            comision_generada: comisionApp
+        }).eq('id', currentAsistenciaId);
+
+        await window.dbApp.from('grueros').update({ 
+            deuda_comisiones: nuevaDeuda 
+        }).eq('id', miGrueroId);
+        
+        // 5. VOLVER AL RADAR
+        document.getElementById('radar-visual').style.display = 'flex';
+        document.getElementById('btn-toggle').style.display = 'block';
+        
+        showToast(`Servicio Finalizado. Deuda registrada: $${comisionApp.toFixed(2)}`);
+        
+        // Limpiamos variables
+        currentAsistenciaId = null;
+        salaGruaUrl = null;
+
+        // Verificar si se bloquea por nueva deuda
+        checkUser(); 
+
+    } catch (err) {
+        console.error("Error al finalizar:", err);
+        const overlay = document.getElementById('video-overlay-gruero');
+        if (overlay) overlay.remove();
+        document.getElementById('radar-visual').style.display = 'flex';
+        document.getElementById('btn-toggle').style.display = 'block';
+    }
+}
         // FUNCIÓN FALTANTE PARA SALIR DEL PANEL
         async function logout() { 
             if(isOnline) await toggleServicio(); 
